@@ -114,6 +114,29 @@ class AuthManager extends ChangeNotifier {
     }
   }
   
+  /// Sign in with Google
+  Future<bool> signInWithGoogle() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    
+    try {
+      final response = await SupabaseService.instance.signInWithGoogle();
+      _currentUser = response.user;
+      if (_currentUser != null) {
+        await _loadProfile();
+      }
+      _isLoading = false;
+      notifyListeners();
+      return _currentUser != null;
+    } catch (e) {
+      _error = e.toString().replaceAll('AuthException: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+  
   /// Sign in with NFC tag
   Future<bool> signInWithNfc(String nfcTagId) async {
     _isLoading = true;

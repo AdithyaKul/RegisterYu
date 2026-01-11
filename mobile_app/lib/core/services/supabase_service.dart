@@ -1,5 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 /// Supabase Service - Central point for all Supabase operations
 class SupabaseService {
@@ -53,10 +55,40 @@ class SupabaseService {
     );
   }
   
-  /// Sign in with Google (requires additional setup)
-  /// This method is a placeholder - OAuth requires platform configuration
-  Future<void> signInWithGoogle() async {
-    throw UnimplementedError('Google Sign-In requires Firebase/Google Cloud setup');
+  /// Sign in with Google
+  /// Requires 'google_sign_in' package and Firebase/GCP configuration
+  Future<AuthResponse> signInWithGoogle() async {
+    // 1. Web Client ID (from Google Cloud Console) is used as serverClientId for Android
+    // YOU MUST GENERATE THIS IN GOOGLE CLOUD CONSOLE
+    const webClientId = 'replace-with-your-web-client-id.apps.googleusercontent.com';
+    
+    // 2. iOS Client ID (from Google Cloud Console)
+    const iosClientId = 'replace-with-your-ios-client-id.apps.googleusercontent.com';
+
+    // 3. Initialize Google Sign In
+    final GoogleSignIn googleSignIn = GoogleSignIn(
+      clientId: kIsWeb ? webClientId : null, // Android uses serverClientId automatically from google-services.json
+      serverClientId: webClientId,
+    );
+    
+    // 4. Request Google Login
+    final googleUser = await googleSignIn.signIn();
+    if (googleUser == null) throw 'Google Sign-In cancelled by user';
+    
+    final googleAuth = await googleUser.authentication;
+    final accessToken = googleAuth.accessToken;
+    final idToken = googleAuth.idToken;
+
+    if (idToken == null) {
+      throw 'No ID Token found.';
+    }
+
+    // 5. Authenticate with Supabase using the tokens
+    return client.auth.signInWithIdToken(
+      provider: OAuthProvider.google,
+      idToken: idToken,
+      accessToken: accessToken,
+    );
   }
   
   /// Sign out

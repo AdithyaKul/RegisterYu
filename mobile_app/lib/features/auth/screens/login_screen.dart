@@ -163,21 +163,28 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<void> _handleGoogleSignIn() async {
     HapticFeedback.mediumImpact();
-    // Google Sign-In requires additional setup (Firebase/Google Cloud Console)
-    // For now, show a message to use email login
-    setState(() {
-      _error = 'Google Sign-In coming soon! Please use email login.';
-    });
+    setState(() => _isLoading = true);
     
-    // Quick visual feedback
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Please use email login for now'),
-        backgroundColor: AppColors.accentBlue,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    // Call Google Sign-In via AuthManager
+    final success = await AuthManager.instance.signInWithGoogle();
+    
+    if (success) {
+      if (mounted) _navigateToHome();
+    } else {
+      setState(() {
+        _isLoading = false;
+        _error = AuthManager.instance.error;
+      });
+      if (_error != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_error!), 
+            backgroundColor: Colors.red.withOpacity(0.8),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   void _navigateToHome() {
