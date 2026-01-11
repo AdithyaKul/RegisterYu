@@ -66,29 +66,33 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       final updates = {
         'full_name': _nameController.text.trim(),
+        'college_id': _usnController.text.trim(), // Also update college_id for backward compatibility
         'usn': _usnController.text.trim(),
         'phone_number': _phoneController.text.trim(),
         'department': _deptController.text.trim(),
         'semester': _semController.text.trim(),
         'section': _sectionController.text.trim(),
-        'updated_at': DateTime.now().toIso8601String(),
       };
+
+      debugPrint('Updating profile with: $updates');
 
       await SupabaseService.instance.updateProfile(
         AuthManager.instance.userId, 
         updates
       );
       
-      // Update local state in AuthManager if needed
-      // await AuthManager.instance.refreshProfile(); // Assuming this exists or needed
+      // Reload profile in AuthManager
+      await AuthManager.instance.updateProfile(updates);
 
       if (mounted) {
-        SuccessSnackBar.show(context, 'Profile updated successfully');
+        SuccessSnackBar.show(context, 'Profile updated successfully!');
+        await Future.delayed(const Duration(milliseconds: 500));
         Navigator.pop(context, true); // Return true to indicate update
       }
     } catch (e) {
+      debugPrint('Profile update error: $e');
       if (mounted) {
-        ErrorSnackBar.show(context, 'Failed to update profile: $e');
+        ErrorSnackBar.show(context, 'Failed to save: ${e.toString().contains('column') ? 'Database not ready. Contact admin.' : e.toString()}');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

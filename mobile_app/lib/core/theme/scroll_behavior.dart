@@ -5,8 +5,9 @@ class SmoothScrollBehavior extends ScrollBehavior {
 
   @override
   ScrollPhysics getScrollPhysics(BuildContext context) {
-    // Use native BouncingScrollPhysics for maximum speed
-    return const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+    // Use ClampingScrollPhysics for native Android performance
+    // This is the default on Android and provides the fastest, smoothest scroll
+    return const ClampingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
   }
 
   @override
