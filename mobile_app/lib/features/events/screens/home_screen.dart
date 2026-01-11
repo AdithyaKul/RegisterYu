@@ -68,7 +68,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         body: LiquidBackground(
           child: PageView(
             controller: _pageController,
-            physics: const ClampingScrollPhysics(),
             onPageChanged: _onPageChanged,
              children: const [
               _EventFeedScreen(),
@@ -148,8 +147,7 @@ class _EventFeedScreenState extends State<_EventFeedScreen> {
       color: AppColors.accentBlue,
       backgroundColor: AppColors.surfaceCharcoal,
         child: CustomScrollView(
-          physics: const ClampingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-          cacheExtent: 3000.0, // Massive cache for ultra smooth scrolling
+          cacheExtent: 1000.0, // Optimized cache - not too much, not too little
           slivers: [
           // Header
           SliverToBoxAdapter(
@@ -441,31 +439,13 @@ class _EventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return RepaintBoundary(
-      child: GestureDetector(
-        onTap: () {
-          HapticFeedback.mediumImpact();
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.mediumImpact();
         Navigator.push(
           context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                EventDetailScreen(event: event),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(
-                opacity: animation,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0, 0.05),
-                    end: Offset.zero,
-                  ).animate(CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOutCubic,
-                  )),
-                  child: child,
-                ),
-              );
-            },
-            transitionDuration: const Duration(milliseconds: 300),
+          MaterialPageRoute(
+            builder: (context) => EventDetailScreen(event: event),
           ),
         );
       },
@@ -473,128 +453,126 @@ class _EventCard extends StatelessWidget {
         height: 280,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
+          color: AppColors.surfaceCharcoal,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Background Image
-              AppCachedImage(
-                imageUrl: event.imageUrl,
-                fit: BoxFit.cover,
-              ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Event Image
+            AppCachedImage(
+              imageUrl: event.imageUrl,
+              fit: BoxFit.cover,
+            ),
 
-              // Gradient Overlay
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.3),
-                      Colors.black.withOpacity(0.9),
-                    ],
-                    stops: const [0.3, 0.6, 1.0],
-                  ),
+            // Gradient Overlay
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.3),
+                    Colors.black.withOpacity(0.9),
+                  ],
+                  stops: const [0.3, 0.6, 1.0],
                 ),
               ),
+            ),
 
-              // Content
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Category Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppColors.accentBlue.withOpacity(0.9),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          event.category.toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1,
-                          ),
-                        ),
+            // Content
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Category Badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.accentBlue.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      const SizedBox(height: 12),
-
-                      // Title
-                      Text(
-                        event.title,
+                      child: Text(
+                        event.category.toUpperCase(),
                         style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
                           color: Colors.white,
-                          height: 1.2,
-                          letterSpacing: -0.5,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                    ),
+                    const SizedBox(height: 12),
 
-                      // Meta Row
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.calendar_today_rounded,
-                            size: 14,
+                    // Title
+                    Text(
+                      event.title,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        height: 1.2,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Meta Row
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.calendar_today_rounded,
+                          size: 14,
+                          color: Colors.white70,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          event.formattedDate,
+                          style: const TextStyle(
+                            fontSize: 13,
                             color: Colors.white70,
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            event.formattedDate,
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            event.price,
                             style: const TextStyle(
-                              fontSize: 13,
-                              color: Colors.white70,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
                             ),
                           ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              event.price,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ), // ClipRRect
-      ), // Container
-      ), // GestureDetector
-    ); // RepaintBoundary
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
