@@ -6,7 +6,7 @@ class SmoothScrollBehavior extends ScrollBehavior {
 
   @override
   ScrollPhysics getScrollPhysics(BuildContext context) {
-    return const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+    return const FastScrollPhysics(parent: AlwaysScrollableScrollPhysics());
   }
 
   @override

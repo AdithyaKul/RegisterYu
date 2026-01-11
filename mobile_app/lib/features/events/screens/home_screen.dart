@@ -13,6 +13,7 @@ import '../../wallet/screens/wallet_screen.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../../shared/widgets/liquid_background.dart';
+import '../../../core/theme/scroll_behavior.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -67,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         body: LiquidBackground(
           child: PageView(
             controller: _pageController,
-            physics: const BouncingScrollPhysics(),
+            physics: const FastScrollPhysics(),
             onPageChanged: _onPageChanged,
              children: const [
               _EventFeedScreen(),
@@ -147,7 +148,8 @@ class _EventFeedScreenState extends State<_EventFeedScreen> {
       color: AppColors.accentBlue,
       backgroundColor: AppColors.surfaceCharcoal,
         child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(), // Ensures refresh works but inherits ambient physics simulation
+          physics: const FastScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+          cacheExtent: 1500.0,
           slivers: [
           // Header
           SliverToBoxAdapter(
@@ -160,33 +162,13 @@ class _EventFeedScreenState extends State<_EventFeedScreen> {
                   children: [
                     Row(
                       children: [
-                         Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [
-                                AppColors.accentBlue,
-                                AppColors.accentPurple,
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.accentBlue.withOpacity(0.3),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.app_registration_rounded,
-                              color: Colors.white,
-                              size: 24,
-                            ),
+                         ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.asset(
+                            'assets/app_icon.png',
+                            width: 40,
+                            height: 40,
+                            fit: BoxFit.cover,
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -357,7 +339,6 @@ class _ProfileButton extends StatelessWidget {
           // Navigate to profile tab (index 3)
           // Since we can't easily access the parent state here, we rely on the
           // bottom nav or just let them use the bottom nav
-          // Alternatively, we can just do nothing as the bottom nav exists
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Use the Profile tab to view details')),
           );

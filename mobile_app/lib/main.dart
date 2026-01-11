@@ -4,9 +4,7 @@ import 'core/theme/app_theme.dart';
 import 'core/services/supabase_service.dart';
 import 'core/services/auth_manager.dart';
 import 'features/events/screens/home_screen.dart';
-import 'features/auth/screens/login_screen.dart';
-
-import 'core/theme/theme_manager.dart';
+import 'core/theme/scroll_behavior.dart'; // Imported optimized scroll behavior
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,19 +20,14 @@ class SambhramEventsApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: ThemeManager().themeModeNotifier,
-      builder: (context, themeMode, child) {
-        return MaterialApp(
-          title: 'RegisterYu',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          themeMode: themeMode,
-          home: const AuthWrapper(),
-          scrollBehavior: const SmoothScrollBehavior(),
-        );
-      },
+    return MaterialApp(
+      title: 'RegisterYu',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.darkTheme, // Force Dark Theme
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.dark, // Enforce Dark Mode
+      home: const AuthWrapper(),
+      scrollBehavior: const SmoothScrollBehavior(),
     );
   }
 }
@@ -52,23 +45,6 @@ class AuthWrapper extends StatelessWidget {
         return const HomeScreen();
       },
     );
-  }
-}
-
-class SmoothScrollBehavior extends ScrollBehavior {
-  const SmoothScrollBehavior();
-
-  @override
-  ScrollPhysics getScrollPhysics(BuildContext context) {
-    // Pure BouncingScrollPhysics is usually the "smoothest" feel users want
-    // It prevents the hard stops of ClampingPhysics
-    return const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
-  }
-
-  @override
-  Widget buildOverscrollIndicator(
-      BuildContext context, Widget child, ScrollableDetails details) {
-    return child;
   }
 }
 

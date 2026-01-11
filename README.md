@@ -57,7 +57,6 @@ graph TD
 
 ### 1️⃣ **The Mobile Experience** (Flutter)
 > *For the students. Fast, fluid, fabulous.*
-*   **120Hz Rendering**: Optimized scroll physics.
 *   **UPI Deep-Links**: Direct payments via GPay/PhonePe/Paytm. NO Gateways.
 *   **Smart Wallet**: NFC-ready digital tickets.
 *   **Google One-Tap**: Instant login.

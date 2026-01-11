@@ -6,6 +6,7 @@ import '../../../core/services/auth_manager.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/theme_manager.dart';
 import '../../auth/screens/login_screen.dart';
+import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -27,19 +28,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadUserStats() async {
     if (!AuthManager.instance.isLoggedIn) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
       return;
     }
 
     try {
       final stats = await SupabaseService.instance.getUserStats(AuthManager.instance.userId);
-      setState(() {
-        _stats = stats;
-        _isLoading = false;
-      });
+      // Refresh auth profile to get latest details if edited
+      // AuthManager.instance.refreshProfile() logic goes here if implemented
+      // For now we assume local update or fetch new profile
+      if (mounted) {
+        setState(() {
+          _stats = stats;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       debugPrint('Error loading stats: $e');
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -117,430 +123,444 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = AuthManager.instance;
-    final profile = auth.userProfile;
-    
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: RefreshIndicator(
-        onRefresh: _loadUserStats,
-        color: AppColors.accentBlue,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-          slivers: [
-            // Header
-            SliverToBoxAdapter(
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      // Profile Header
-                      Row(
+    return ListenableBuilder(
+      listenable: AuthManager.instance,
+      builder: (context, _) {
+        final auth = AuthManager.instance;
+        // User currentUser is updated via AuthManager notification usually
+        // But we access UserModel directly if available
+        // We'll rely on the Supabase profile fetch for displayed detailed data if AuthManager doesn't have it all yet
+        // However, EditProfile pushed updates might need a reload.
+        
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          body: RefreshIndicator(
+            onRefresh: _loadUserStats,
+            color: AppColors.accentBlue,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+              slivers: [
+                // Header
+                SliverToBoxAdapter(
+                  child: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
                         children: [
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [
-                                  AppColors.accentBlue,
-                                  AppColors.accentPurple,
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
+                          // Profile Header
+                          Row(
+                            children: [
+                              Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      AppColors.accentBlue,
+                                      AppColors.accentPurple,
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(24),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppColors.accentPurple.withOpacity(0.3),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 8),
+                                    ),
+                                  ],
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    auth.userInitials,
+                                    style: const TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
                               ),
-                              borderRadius: BorderRadius.circular(24),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.accentPurple.withOpacity(0.3),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 8),
+                              const SizedBox(width: 20),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      auth.userName,
+                                      style: TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      auth.userEmail,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    // Edit Profile Button
+                                    GestureDetector(
+                                      onTap: () async {
+                                        final result = await Navigator.push(
+                                          context,
+                                          MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                                        );
+                                        if (result == true) {
+                                          _loadUserStats(); // Reload to refresh fields (if we were fetching full profile here)
+                                        }
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          border: Border.all(color: AppColors.accentBlue),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: const Text(
+                                          'Edit Profile',
+                                          style: TextStyle(
+                                            color: AppColors.accentBlue,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 32),
+
+                          // Stats Row
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surface,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: Theme.of(context).dividerColor.withOpacity(0.1),
+                              ),
+                            ),
+                            child: _isLoading
+                                ? const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(20),
+                                      child: CircularProgressIndicator(color: AppColors.accentBlue),
+                                    ),
+                                  )
+                                : Row(
+                                    children: [
+                                      _StatItem(
+                                        value: '${_stats['total']}',
+                                        label: 'Events',
+                                        icon: Icons.event_rounded,
+                                      ),
+                                      _StatDivider(),
+                                      _StatItem(
+                                        value: '${_stats['attended']}',
+                                        label: 'Attended',
+                                        icon: Icons.check_circle_rounded,
+                                      ),
+                                      _StatDivider(),
+                                      _StatItem(
+                                        value: '₹${(_stats['saved'] as num).toInt()}',
+                                        label: 'Saved',
+                                        icon: Icons.savings_rounded,
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Info Section
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: FutureBuilder<Map<String, dynamic>?>(
+                      future: SupabaseService.instance.getProfile(auth.userId), // Fetch fresh profile
+                      builder: (context, snapshot) {
+                        final profile = snapshot.data;
+                        final String usn = profile?['usn'] ?? 'Not Set';
+                        final String sem = profile?['semester'] ?? '-';
+                        final String sec = profile?['section'] ?? '-';
+                        final String dept = profile?['department'] ?? 'Not Set';
+                        final String phone = profile?['phone_number'] ?? 'Not Set';
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _SectionTitle(title: 'Student Details'),
+                            const SizedBox(height: 16),
+                            _InfoCard(
+                              items: [
+                                _InfoRow(
+                                  icon: Icons.badge_rounded,
+                                  label: 'USN',
+                                  value: usn,
+                                ),
+                                _InfoRow(
+                                  icon: Icons.school_rounded,
+                                  label: 'Department',
+                                  value: dept,
+                                ),
+                                _InfoRow(
+                                  icon: Icons.calendar_view_day_rounded,
+                                  label: 'Semester / Section',
+                                  value: '$sem / $sec',
+                                ),
+                                _InfoRow(
+                                  icon: Icons.phone_rounded,
+                                  label: 'Phone',
+                                  value: phone,
                                 ),
                               ],
                             ),
-                            child: Center(
-                              child: Text(
-                                auth.userInitials,
-                                style: const TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+
+                            const SizedBox(height: 32),
+
+                            _SectionTitle(title: 'Settings'),
+                            const SizedBox(height: 16),
+                            _SettingsCard(
+                              items: [
+                                _SettingRow(
+                                  icon: Icons.notifications_rounded,
+                                  label: 'Push Notifications',
+                                  trailing: Switch(
+                                    value: true,
+                                    onChanged: (v) => _showToast(context, 'Notifications updated'),
+                                    activeColor: AppColors.accentBlue,
+                                  ),
                                 ),
-                              ),
+                                _SettingRow(
+                                  icon: Icons.dark_mode_rounded,
+                                  label: 'Dark Mode',
+                                  trailing: ValueListenableBuilder<ThemeMode>(
+                                    valueListenable: ThemeManager().themeModeNotifier,
+                                    builder: (context, mode, _) {
+                                      return Switch(
+                                        value: mode == ThemeMode.dark,
+                                        onChanged: (v) {
+                                          ThemeManager().toggleTheme(v);
+                                          _showToast(context, v ? 'Dark Mode Enabled' : 'Light Mode Enabled');
+                                        },
+                                        activeColor: AppColors.accentBlue,
+                                      );
+                                    },
+                                  ),
+                                ),
+                                _SettingRow(
+                                  icon: Icons.dashboard_rounded,
+                                  label: 'Admin Dashboard',
+                                  onTap: () {
+                                    HapticFeedback.mediumImpact();
+                                    _launchUrl('https://registeryu-dashboard.vercel.app', context);
+                                  },
+                                ),
+                              ],
                             ),
-                          ),
-                          const SizedBox(width: 20),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  auth.userName,
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                                    letterSpacing: -0.5,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  auth.userEmail,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.accentBlue.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.verified,
-                                        size: 14,
-                                        color: AppColors.accentBlue,
+
+                            const SizedBox(height: 32),
+
+                            _SectionTitle(title: 'Support'),
+                            const SizedBox(height: 16),
+                            _SettingsCard(
+                              items: [
+                                _SettingRow(
+                                  icon: Icons.help_outline_rounded,
+                                  label: 'Help Center',
+                                  onTap: () {
+                                    HapticFeedback.lightImpact();
+                                    showDialog(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        backgroundColor: AppColors.surfaceCharcoal,
+                                        title: const Text('Help Center', style: TextStyle(color: Colors.white)),
+                                        content: const Text('For support, please contact the event organizers or email: support@sambhram.edu', style: TextStyle(color: Colors.white70)),
+                                        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
                                       ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        profile?['role']?.toString().toUpperCase() ?? 'STUDENT',
+                                    );
+                                  },
+                                ),
+                                _SettingRow(
+                                  icon: Icons.bug_report_rounded,
+                                  label: 'Report a Bug',
+                                  onTap: () {
+                                    HapticFeedback.lightImpact();
+                                    _launchUrl('mailto:bugs@registeryu.com?subject=Bug Report', context);
+                                  },
+                                ),
+                                _SettingRow(
+                                  icon: Icons.info_outline_rounded,
+                                  label: 'About RegisterYu',
+                                  onTap: () {
+                                    HapticFeedback.lightImpact();
+                                    _showAboutDialog();
+                                  },
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 32),
+
+                            // Logout Button
+                            GestureDetector(
+                              onTap: _isLoggingOut ? null : _handleLogout,
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(18),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: Colors.red.withOpacity(0.2),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    if (_isLoggingOut)
+                                      const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.red,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    else ...[
+                                      const Icon(
+                                        Icons.logout_rounded,
+                                        color: Colors.red,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      const Text(
+                                        'Sign Out',
                                         style: TextStyle(
-                                          fontSize: 12,
-                                          color: AppColors.accentBlue,
+                                          color: Colors.red,
+                                          fontSize: 16,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ],
-                                  ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // Stats Row
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surface,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Theme.of(context).dividerColor.withOpacity(0.1),
-                          ),
-                        ),
-                        child: _isLoading
-                            ? const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(20),
-                                  child: CircularProgressIndicator(color: AppColors.accentBlue),
-                                ),
-                              )
-                            : Row(
-                                children: [
-                                  _StatItem(
-                                    value: '${_stats['total']}',
-                                    label: 'Events',
-                                    icon: Icons.event_rounded,
-                                  ),
-                                  _StatDivider(),
-                                  _StatItem(
-                                    value: '${_stats['attended']}',
-                                    label: 'Attended',
-                                    icon: Icons.check_circle_rounded,
-                                  ),
-                                  _StatDivider(),
-                                  _StatItem(
-                                    value: '₹${(_stats['saved'] as num).toInt()}',
-                                    label: 'Saved',
-                                    icon: Icons.savings_rounded,
-                                  ),
-                                ],
-                              ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // Info Section
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _SectionTitle(title: 'Student Details'),
-                    const SizedBox(height: 16),
-                    _InfoCard(
-                      items: [
-                        _InfoRow(
-                          icon: Icons.badge_rounded,
-                          label: 'College ID',
-                          value: profile?['college_id'] ?? 'Not set',
-                        ),
-                        _InfoRow(
-                          icon: Icons.school_rounded,
-                          label: 'Department',
-                          value: profile?['department'] ?? 'Not set',
-                        ),
-                        _InfoRow(
-                          icon: Icons.phone_rounded,
-                          label: 'Phone',
-                          value: profile?['phone'] ?? 'Not set',
-                        ),
-                        _InfoRow(
-                          icon: Icons.nfc_rounded,
-                          label: 'NFC Card',
-                          value: profile?['nfc_tag_id'] != null ? 'Linked ✓' : 'Not linked',
-                          valueColor: profile?['nfc_tag_id'] != null 
-                              ? Colors.green 
-                              : AppColors.textSecondary,
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    _SectionTitle(title: 'Settings'),
-                    const SizedBox(height: 16),
-                    _SettingsCard(
-                      items: [
-                        _SettingRow(
-                          icon: Icons.notifications_rounded,
-                          label: 'Push Notifications',
-                          trailing: Switch(
-                            value: true,
-                            onChanged: (v) => _showToast(context, 'Notifications updated'),
-                            activeColor: AppColors.accentBlue,
-                          ),
-                        ),
-                        _SettingRow(
-                          icon: Icons.dark_mode_rounded,
-                          label: 'Dark Mode',
-                          trailing: ValueListenableBuilder<ThemeMode>(
-                            valueListenable: ThemeManager().themeModeNotifier,
-                            builder: (context, mode, _) {
-                              return Switch(
-                                value: mode == ThemeMode.dark,
-                                onChanged: (v) {
-                                  ThemeManager().toggleTheme(v);
-                                  _showToast(context, v ? 'Dark Mode Enabled' : 'Light Mode Enabled');
-                                },
-                                activeColor: AppColors.accentBlue,
-                              );
-                            },
-                          ),
-                        ),
-                        _SettingRow(
-                          icon: Icons.language_rounded,
-                          label: 'Language',
-                          trailing: Text(
-                            'English',
-                            style: TextStyle(color: AppColors.textSecondary),
-                          ),
-                          onTap: () => _showToast(context, 'Language selection coming soon'),
-                        ),
-                        _SettingRow(
-                          icon: Icons.dashboard_rounded,
-                          label: 'App Dashboard',
-                          onTap: () {
-                            HapticFeedback.mediumImpact();
-                            _launchUrl('http://192.168.1.10:3000', context);
-                          },
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    _SectionTitle(title: 'Support'),
-                    const SizedBox(height: 16),
-                    _SettingsCard(
-                      items: [
-                        _SettingRow(
-                          icon: Icons.help_outline_rounded,
-                          label: 'Help Center',
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            _showToast(context, 'Opening Help Center...');
-                          },
-                        ),
-                        _SettingRow(
-                          icon: Icons.bug_report_rounded,
-                          label: 'Report a Bug',
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            _showToast(context, 'Redirecting to Bug Reporter...');
-                          },
-                        ),
-                        _SettingRow(
-                          icon: Icons.info_outline_rounded,
-                          label: 'About RegisterYu',
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            _showAboutDialog();
-                          },
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    // Logout Button
-                    GestureDetector(
-                      onTap: _isLoggingOut ? null : _handleLogout,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.red.withOpacity(0.2),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            if (_isLoggingOut)
-                              const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  color: Colors.red,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            else ...[
-                              const Icon(
-                                Icons.logout_rounded,
-                                color: Colors.red,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 10),
-                              const Text(
-                                'Sign Out',
-                                style: TextStyle(
-                                  color: Colors.red,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    // Contributors
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 8.0),
-                        child: Column(
-                          children: [
-                            Text(
-                              'Contributors',
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1,
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            GestureDetector(
-                              onTap: () => _launchUrl('https://github.com/adithya-sambhram', context),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.05),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
+
+                            const SizedBox(height: 32),
+
+                            // Contributors
+                            Center(
+                              child: Padding(
+                                padding: const EdgeInsets.only(bottom: 8.0),
+                                child: Column(
                                   children: [
-                                    const CircleAvatar(
-                                      radius: 10,
-                                      backgroundColor: AppColors.accentBlue,
-                                      child: Text('A', style: TextStyle(fontSize: 10, color: Colors.white)),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    const Text(
-                                      'Adithya',
+                                    Text(
+                                      'Contributors',
                                       style: TextStyle(
-                                        color: Colors.white,
+                                        color: AppColors.textSecondary,
                                         fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1,
                                       ),
                                     ),
-                                    const SizedBox(width: 4),
-                                    Icon(
-                                      Icons.open_in_new_rounded,
-                                      color: AppColors.textSecondary,
-                                      size: 10,
+                                    const SizedBox(height: 8),
+                                    GestureDetector(
+                                      onTap: () => _launchUrl('https://github.com/adithya-sambhram', context),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.05),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const CircleAvatar(
+                                              radius: 10,
+                                              backgroundColor: AppColors.accentBlue,
+                                              child: Text('A', style: TextStyle(fontSize: 10, color: Colors.white)),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            const Text(
+                                              'Adithya',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Icon(
+                                              Icons.open_in_new_rounded,
+                                              color: AppColors.textSecondary,
+                                              size: 10,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
                             ),
+
+                            const SizedBox(height: 16),
+
+                            // Made with Love
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Made with ',
+                                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                                ),
+                                const Icon(Icons.favorite_rounded, color: Colors.red, size: 14),
+                                Text(
+                                  ' at Sambhram',
+                                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+
+                            // Version
+                            Center(
+                              child: Text(
+                                'RegisterYu v1.0.1',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary.withOpacity(0.5),
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 120),
                           ],
-                        ),
-                      ),
+                        );
+                      }
                     ),
-
-                    const SizedBox(height: 16),
-
-                    // Made with Love
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Made with ',
-                          style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                        ),
-                        const Icon(Icons.favorite_rounded, color: Colors.red, size: 14),
-                        Text(
-                          ' at Sambhram',
-                          style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Version
-                    Center(
-                      child: Text(
-                        'RegisterYu v1.0.1',
-                        style: TextStyle(
-                          color: AppColors.textSecondary.withOpacity(0.5),
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 120),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -813,41 +833,25 @@ class _SettingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: AppColors.textSecondary, size: 20),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 15,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-            if (trailing != null) trailing!,
-            if (onTap != null && trailing == null)
-              Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.textSecondary,
-              ),
-          ],
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: Colors.white70, size: 20),
+      ),
+      title: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
         ),
       ),
+      trailing: trailing ?? const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white24, size: 14),
+      onTap: onTap,
     );
   }
 }

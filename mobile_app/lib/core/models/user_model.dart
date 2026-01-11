@@ -5,9 +5,17 @@ class UserModel {
   final String fullName;
   final String? avatarUrl;
   final String role; // 'student', 'organizer', 'admin'
+  
+  // Student Details
   final String? collegeId;
   final String? department;
   final String? phoneNumber;
+  final String? usn;      // University Seat Number
+  final String? semester; // e.g. "5th"
+  final String? year;     // e.g. "3rd"
+  final String? section;  // e.g. "A"
+  
+  // System Fields
   final String? nfcTagId; // For NFC card login
   final DateTime createdAt;
   final bool isVerified;
@@ -22,6 +30,10 @@ class UserModel {
     this.collegeId,
     this.department,
     this.phoneNumber,
+    this.usn,
+    this.semester,
+    this.year,
+    this.section,
     this.nfcTagId,
     required this.createdAt,
     this.isVerified = false,
@@ -39,6 +51,10 @@ class UserModel {
       collegeId: json['college_id'] as String?,
       department: json['department'] as String?,
       phoneNumber: json['phone_number'] as String?,
+      usn: json['usn'] as String?,
+      semester: json['semester'] as String?,
+      year: json['year'] as String?,
+      section: json['section'] as String?,
       nfcTagId: json['nfc_tag_id'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       isVerified: json['is_verified'] as bool? ?? false,
@@ -57,6 +73,10 @@ class UserModel {
       'college_id': collegeId,
       'department': department,
       'phone_number': phoneNumber,
+      'usn': usn,
+      'semester': semester,
+      'year': year,
+      'section': section,
       'nfc_tag_id': nfcTagId,
       'created_at': createdAt.toIso8601String(),
       'is_verified': isVerified,
@@ -83,6 +103,10 @@ final mockCurrentUser = UserModel(
   collegeId: 'SCE2024001',
   department: 'Computer Science',
   phoneNumber: '+91 98765 43210',
+  usn: '1SB20CS001',
+  semester: '7th',
+  year: '4th',
+  section: 'A',
   nfcTagId: 'NFC:A1:B2:C3:D4',
   createdAt: DateTime(2024, 8, 15),
   isVerified: true,
