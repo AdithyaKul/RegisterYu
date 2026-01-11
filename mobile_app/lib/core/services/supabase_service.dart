@@ -60,7 +60,7 @@ class SupabaseService {
   Future<AuthResponse> signInWithGoogle() async {
     // 1. Web Client ID (from Google Cloud Console) is used as serverClientId for Android
     // YOU MUST GENERATE THIS IN GOOGLE CLOUD CONSOLE
-    const webClientId = 'replace-with-your-web-client-id.apps.googleusercontent.com';
+    const webClientId = '1067510747024-u83r4k7ng2gs8on2q6c5ulhjr5eo1jaa.apps.googleusercontent.com';
     
     // 2. iOS Client ID (from Google Cloud Console)
     const iosClientId = 'replace-with-your-ios-client-id.apps.googleusercontent.com';

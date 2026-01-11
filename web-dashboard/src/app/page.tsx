@@ -72,9 +72,21 @@ export default function LandingPage() {
             <Link href="/login" className="btn btn-primary" style={{ padding: '16px 32px', fontSize: '1.1rem' }}>
               Explore Events
             </Link>
-            <Link href="/login" className="btn btn-secondary" style={{ padding: '16px 32px', fontSize: '1.1rem' }}>
-              Organizer Dashboard
-            </Link>
+            <a
+              href="/app-registeryu.apk"
+              download
+              className="btn btn-secondary"
+              style={{
+                padding: '16px 32px',
+                fontSize: '1.1rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <span>Download App</span>
+              <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>(Beta)</span>
+            </a>
           </div>
         </div>
       </main>
