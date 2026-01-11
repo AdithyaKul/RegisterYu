@@ -127,7 +127,7 @@ npm run dev
 
 *   **📜 Automated Certificate Generator**:
     *   Instantly generate participation and merit certificates for specific events.
-    *   Auto-email to students after event completion.
+    *   Direct download option from the App Ticket Wallet.
     *   Verify certificate authenticity via QR code.
 
 ---
