@@ -27,7 +27,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
-    final user = widget.user ?? AuthManager.instance.currentUser;
+    
+    UserModel? user = widget.user;
+    
+    // Fallback to current user profile from AuthManager if not passed explicitly
+    if (user == null && AuthManager.instance.userProfile != null) {
+      try {
+        user = UserModel.fromJson(AuthManager.instance.userProfile!);
+      } catch (e) {
+        debugPrint('Error parsing user profile: $e');
+      }
+    }
+
     _nameController = TextEditingController(text: user?.fullName ?? '');
     _usnController = TextEditingController(text: user?.usn ?? '');
     _phoneController = TextEditingController(text: user?.phoneNumber ?? '');
