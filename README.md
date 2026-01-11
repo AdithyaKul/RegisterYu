@@ -6,7 +6,11 @@
 
 [![Build Status](https://img.shields.io/badge/Build-PASSING-brightgreen?style=for-the-badge&logo=github)](https://github.com/AdithyaKul/RegisterYu)
 [![Version](https://img.shields.io/badge/Version-BETA_1.2-blueviolet?style=for-the-badge)](https://github.com/AdithyaKul/RegisterYu/releases)
-[![Tech](https://img.shields.io/badge/Stack-FLUTTER_x_NEXTJS-teal?style=for-the-badge&logo=react)](https://nextjs.org)
+[![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
+[![Next JS](https://img.shields.io/badge/Next-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
+[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
+[![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
 <img src="./web-dashboard/public/logo.jpg" alt="RegisterYu Logo" height="200" style="border-radius: 20px; margin: 20px 0;">
 
