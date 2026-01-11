@@ -31,42 +31,47 @@ We don't do spaghetti code. We build skyscrapers.
 ```mermaid
 graph TD
     User([📱 Student]) -->|Interacts| MobileApp[Flutter Mobile App]
-    Admin([🤵 Organizer]) -->|Manages| WebDash[Next.js Dashboard]
-    Security([👮 Guard]) -->|Scans| Scanner[Admin Scanner App]
+    Admin([🤵 Admin]) -->|Manages| WebDash[Next.js Dashboard]
+    Gate([🚧 Gate Registrar]) -->|On-site Entry| Scanner[Admin Scanner App]
+    Vol([🙋 Volunteer]) -->|Event Check-in| Scanner
 
     subgraph "Core Infrastructure"
         MobileApp -->|Auth & Data| Supabase[(Supabase Backend)]
         WebDash -->|Auth & Data| Supabase
-        Scanner -->|Verify Ticket| Supabase
+        Scanner -->|Verify & Register| Supabase
     end
 
     subgraph "External Services"
         MobileApp -->|Google Sign-In| OAuth[Google OAuth]
-        MobileApp -->|Payments| Razorpay[Razorpay Gateway]
+        MobileApp -->|Direct Payment| UPI[UPI Deep Link]
     end
 ```
 
 ---
 
-## 💎 **THE TRINITY**
+## 💎 **THE QUADRANT**
 
 ### 1️⃣ **The Mobile Experience** (Flutter)
 > *For the students. Fast, fluid, fabulous.*
-*   **120Hz Rendering**: Optimized scroll physics that feel sharper than reality.
+*   **120Hz Rendering**: Optimized scroll physics.
+*   **UPI Deep-Links**: Direct payments via GPay/PhonePe/Paytm. NO Gateways.
 *   **Smart Wallet**: NFC-ready digital tickets.
-*   **Guest Mode**: Try before you buy.
-*   **Google One-Tap**: Because passwords are so 2010.
+*   **Google One-Tap**: Instant login.
 
 ### 2️⃣ **The Command Center** (Next.js 15)
-> *For the masterminds. Control everything.*
-*   **Live Analytics**: Watch registration numbers climb in real-time.
-*   **Revenue Tracking**: Every rupee accounted for.
-*   **RBAC System**: Granular permission control for your team.
+> *For the Admins. Total Control.*
+*   **Live Analytics**: Real-time registration tracking.
+*   **Master Control**: Create events, manage users, override payments.
 
-### 3️⃣ **The Gatekeeper** (Admin Scanner)
-> *For the ground crew. Speed is key.*
-*   **Sub-second Scanning**: Process queues instantly.
-*   **Offline Fallback**: Works even when the network chokes.
+### 3️⃣ **The Gate Keepers** (Scanner Mode: Registrar)
+> *For the Frontline. Entry & On-spot.*
+*   **Gate Registration**: Register students on the spot at the college entrance.
+*   **Initial Verification**: Validate ID cards and payments before entry.
+
+### 4️⃣ **The Event Volunteers** (Scanner Mode: Event)
+> *For the Hosts. Event Specific.*
+*   **Event Check-in**: Scan tickets for specific sub-events (e.g., Hackathon, Concert).
+*   **Crowd Control**: Verify eligibility for individual activities.
 
 ---
 

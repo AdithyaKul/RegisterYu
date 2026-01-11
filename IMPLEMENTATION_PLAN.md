@@ -28,10 +28,11 @@ A premium event registration system for Sambhram College, inspired by [Luma](htt
     *   "Who's Going" (Social proof).
 *   **Registration**:
     *   One-tap register (if free).
-    *   UPI Payment Integration (Razorpay/PhonePe) for paid events.
+    *   **UPI Intent Payment**: Deep-link directly to GPay/PhonePe/Paytm. No payment gateway fees.
 *   **Ticket Wallet**: 
     *   QR Code generation for entry.
     *   Offline access to tickets.
+    *   NFC Support for fast entry.
 *   **Notifications**: Push notifications for event reminders and updates.
 
 ### 💻 Web Dashboard (Admin/Organizer Facing)
@@ -46,8 +47,19 @@ A premium event registration system for Sambhram College, inspired by [Luma](htt
     *   Table view of all registrants.
     *   Export to CSV.
     *   Bulk Email/WhatsApp notifications.
-*   **Check-in System**:
-    *   Web-based QR Scanner to verify tickets at the door.
+*   **Role-Based Access Control (RBAC)**:
+    *   **Admin**: Full system access.
+    *   **Organizer**: Can manage their own events.
+
+### 🔫 Admin & Gate Scanner App (Staff Facing)
+*   **Mode A: Gate Registrar (Gate Entry)**:
+    *   Located at the main college entrance.
+    *   **Features**: On-spot Registration, Payment Verification, ID Card Scanning.
+    *   **Goal**: Ensure every student entering has a valid pass/registration.
+*   **Mode B: Event Volunteer (Event Check-in)**:
+    *   Located at specific event venues (e.g., Auditorium, Lab).
+    *   **Features**: Scan QR codes for specific event entry.
+    *   **Goal**: Verify student is registered for *this specific event*.
 
 ### 6. Ticket System & Communications
 *   **Email Infrastructure**: 
@@ -57,22 +69,14 @@ A premium event registration system for Sambhram College, inspired by [Luma](htt
 *   **Digital Wallets**:
     *   **Android**: **Google Wallet API** (Native "Add to Google Wallet" button).
     *   **iOS**: **Apple Wallet (.pkpass)** files.
-    *   *Experience*: Students receive an email -> Click "Add to Wallet" -> Ticket lives in their phone's native wallet for offline access.
 
-## 4. Proposed Tech Stack
-To ensure speed, performance, and a premium feel:
-
-### Variant A: The "Flutter" Path (Recommended based on your history)
-*   **Mobile App**: **Flutter**. Best for beautiful, native-performance UI and complex animations.
-*   **Web Dashboard**: **Next.js (React)**. Best for SEO and complex admin interfaces.
-*   **Backend**: **Supabase** (PostgreSQL). Handles Auth, Database, and Realtime subscriptions for both App and Web.
-
-### Variant B: The "Unified" Path
-*   **Mobile App**: **React Native (Expo)**. Allows sharing code with the web.
-*   **Web Dashboard**: **Next.js**.
-*   **Backend**: **Supabase**.
+## 4. Confirmed Tech Stack
+*   **Mobile App**: **Flutter** (3.27+).
+*   **Web Dashboard**: **Next.js 15 (React)**.
+*   **Backend**: **Supabase** (PostgreSQL, Auth, Edge Functions).
+*   **Infrastructure**: Vercel (Web), GitHub Actions (CI/CD).
 
 ## 5. Next Steps
-1.  **Confirm Tech Stack**: Shall we go with **Flutter + Next.js + Supabase**?
-2.  **Design System Setup**: Define the color palette and typography.
-3.  **Database Modeling**: Design the Schema (Users, Events, Tickets, Registrations).
+1.  **Refine RBAC**: Implement the "Gate Registrar" vs "Volunteer" logic in Supabase.
+2.  **Scanner App Modes**: Update the Flutter Admin app to have a mode switch.
+3.  **UPI Integration**: Implement `url_launcher` based UPI intent firing in the mobile app.
