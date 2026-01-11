@@ -8,7 +8,7 @@
 [![Version](https://img.shields.io/badge/Version-BETA_1.2-blueviolet?style=for-the-badge)](https://github.com/AdithyaKul/RegisterYu/releases)
 [![Tech](https://img.shields.io/badge/Stack-FLUTTER_x_NEXTJS-teal?style=for-the-badge&logo=react)](https://nextjs.org)
 
-<img src="./web-dashboard/public/liquid-map.png" alt="RegisterYu Cover" width="100%" style="border-radius: 10px; margin-top: 20px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+<img src="./web-dashboard/public/logo.jpg" alt="RegisterYu Logo" height="200" style="border-radius: 20px; margin: 20px 0;">
 
 **[ 📲 DOWNLOAD APP (BETA) ](https://registeryu-dashboard.vercel.app/app-registeryu.apk)** • **[ 🌐 OPEN DASHBOARD ](https://registeryu-dashboard.vercel.app)**
 
