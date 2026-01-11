@@ -29,8 +29,11 @@
 - ✅ Sign Up flow with account creation and email verification prompt
 - ✅ NFC card lookup against database (profiles.nfc_tag_id)
 - ✅ Proper error display and success messages
+- ✅ Proper error display and success messages
 - ✅ AuthWrapper in main.dart auto-directs based on login state
-- ⏳ Google Sign-In placeholder (requires Firebase/GCP configuration)
+- ✅ **Google Sign-In**: Native Android integration using Google Cloud OAuth clients.
+  - Linked specific Web Client ID (`10675...`) for Supabase verification.
+  - Configured SHA-1 fingerprint for Android app security.
 
 **Events Feed (`home_screen.dart`):**
 - ✅ Fetches events from Supabase `events` table

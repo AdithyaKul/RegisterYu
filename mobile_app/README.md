@@ -74,7 +74,7 @@ We resolved previously rigid/janky scrolling by implementing a hybrid physics an
 | Event Registration | ✅ Secured | Prompts login only when needed |
 | Wallet/Tickets | ✅ Live | Shows tickets for logged-in users |
 | NFC Card Scan | ✅ Live | Hardware integration active |
-| Google Sign-In | ⏳ Pending | Needs Firebase/SHA-1 setup |
+| Google Sign-In | ✅ Working | Native Android Integration Active |
 
 ## 🛠️ Critical Troubleshooting
 

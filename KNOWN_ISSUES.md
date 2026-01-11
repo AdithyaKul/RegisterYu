@@ -18,13 +18,9 @@ This document tracks the current known issues, pending configurations, and futur
   CREATE POLICY "Allow profile creation" ON profiles FOR INSERT WITH CHECK (true);
   ```
 
-### 2. Google Sign-In Configuration
-- **Issue**: Google Sign-In button is functional in terms of the call, but requires backend configuration.
-- **Action**: 
-  - Set up a Google Cloud Project.
-  - configure OAuth consent screen.
-  - Add client IDs to Supabase Auth -> Providers -> Google.
-  - Update `google-services.json` in `android/app/`.
+### 2. Google Sign-In (✅ Configured)
+- **Status**: Active.
+- **Note**: Ensure you use the correct SHA-1 fingerprint if you change keystores (e.g., for Play Store release). See `GOOGLE_AUTH_SETUP.md`.
 
 ## 🟡 High Priority - UX & Flow
 
