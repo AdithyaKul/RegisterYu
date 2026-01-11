@@ -37,7 +37,7 @@ Look for **SHA-1** under `Variant: debug`. Copy it.
 ### Create Android Client ID (Required for App)
 1. Click **Create Credentials** > **OAuth client ID** again.
 2. Select **Android**.
-3. Package name: `com.sambhram.mobile_app` (or check your `AndroidManifest.xml`).
+3. Package name: `com.sambhram.events.mobile_app` (Check your `android/app/build.gradle.kts`).
 4. **SHA-1 certificate fingerprint**: Paste the SHA-1 you copied earlier.
 5. Click **Create**.
 6. **COPY the Client ID**. This is your `ANDROID_CLIENT_ID`.
@@ -76,7 +76,7 @@ Look for **SHA-1** under `Variant: debug`. Copy it.
 2. If using Firebase (Recommended for easy SHA-1 management):
    - Go to [Firebase Console](https://console.firebase.google.com/).
    - Add Project -> Select your Google Cloud Project.
-   - Add Android App (`com.sambhram.mobile_app`, SHA-1).
+   - Add Android App (`com.sambhram.events.mobile_app`, SHA-1).
    - Download `google-services.json`.
    - Place it in `mobile_app/android/app/`.
 
