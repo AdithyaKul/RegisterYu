@@ -120,6 +120,16 @@ npm install
 npm run dev
 ```
 
+
+---
+
+## 🔮 **FUTURE ROADMAP**
+
+*   **📜 Automated Certificate Generator**:
+    *   Instantly generate participation and merit certificates for specific events.
+    *   Auto-email to students after event completion.
+    *   Verify certificate authenticity via QR code.
+
 ---
 
 ## 📜 **DOCUMENTATION**
