@@ -143,8 +143,8 @@ npm run dev
 
 <div align="center">
 
-### **Forged with 🩸, 😓 & ☕ at Sambhram Institute of Technology**
+### **Crafted with ❤️ and ☕ at Sambhram Institute of Technology**
 
-*"We code to corrupt the status quo."*
+*"Building the future of campus events."*
 
 </div>
