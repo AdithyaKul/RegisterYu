@@ -68,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         body: LiquidBackground(
           child: PageView(
             controller: _pageController,
-            physics: const FastScrollPhysics(),
+            physics: const BouncingScrollPhysics(),
             onPageChanged: _onPageChanged,
              children: const [
               _EventFeedScreen(),
@@ -148,8 +148,8 @@ class _EventFeedScreenState extends State<_EventFeedScreen> {
       color: AppColors.accentBlue,
       backgroundColor: AppColors.surfaceCharcoal,
         child: CustomScrollView(
-          physics: const FastScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-          cacheExtent: 1500.0,
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+          cacheExtent: 2000.0,
           slivers: [
           // Header
           SliverToBoxAdapter(

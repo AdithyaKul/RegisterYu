@@ -11,6 +11,7 @@ import '../../../shared/widgets/cached_image.dart';
 import '../data/mock_events.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../profile/screens/profile_screen.dart';
+import '../../profile/screens/edit_profile_screen.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final Event event;
@@ -362,20 +363,19 @@ class _EventDetailScreenState extends State<EventDetailScreen>
         (profile['department'] != null && profile['department'].toString().isNotEmpty);
         
     if (!isProfileComplete) {
-      // TODO: Implement a proper profile completion dialog
-      // For now, we guide them to the profile screen or show a message
-      // In a real app, show a form here to update profile
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Please complete your profile (College ID & Dept) first'),
-          action: SnackBarAction(label: 'Update', onPressed: _navigateToProfile),
-          duration: Duration(seconds: 4),
+      // Navigate directly to Edit Profile form
+      HapticFeedback.lightImpact();
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const EditProfileScreen(),
         ),
       );
-      // Optional: Navigate to profile
-      // _navigateToProfile(); 
-      // But for better UX, we should just let them do it here. 
-      // I'll leave this as a todo for the user's "Make plans first" requirement
+      
+      // If they completed the profile, retry registration
+      if (result == true && mounted) {
+        _showRegistrationSheet(context);
+      }
       return;
     }
     
