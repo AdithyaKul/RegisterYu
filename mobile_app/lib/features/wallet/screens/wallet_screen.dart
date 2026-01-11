@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/services/supabase_service.dart';
+import '../../../core/services/auth_manager.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -13,29 +16,9 @@ class _WalletScreenState extends State<WalletScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   int _selectedTicket = -1;
-
-  final List<_TicketData> _tickets = [
-    _TicketData(
-      eventName: 'HackHorizon 2024',
-      date: 'Oct 14 • 9:00 AM',
-      location: 'Main Block Auditorium',
-      ticketNumber: 'TKT-2024-1001',
-      gradientColors: [
-        const Color(0xFF667EEA),
-        const Color(0xFF764BA2),
-      ],
-    ),
-    _TicketData(
-      eventName: 'AI & The Future',
-      date: 'Oct 18 • 10:00 AM',
-      location: 'Seminar Hall 2',
-      ticketNumber: 'TKT-2024-1002',
-      gradientColors: [
-        const Color(0xFFF093FB),
-        const Color(0xFFF5576C),
-      ],
-    ),
-  ];
+  List<_TicketData> _tickets = [];
+  bool _isLoading = true;
+  Map<String, dynamic> _stats = {'attended': 0, 'upcoming': 0, 'saved': 0.0};
 
   @override
   void initState() {
@@ -43,7 +26,64 @@ class _WalletScreenState extends State<WalletScreen>
     _controller = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
-    )..forward();
+    );
+    _loadTickets();
+  }
+
+  Future<void> _loadTickets() async {
+    if (!AuthManager.instance.isLoggedIn) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      // Load registrations from Supabase
+      final registrations = await SupabaseService.instance
+          .getUserRegistrations(AuthManager.instance.userId);
+      
+      // Load user stats
+      final stats = await SupabaseService.instance
+          .getUserStats(AuthManager.instance.userId);
+
+      final tickets = registrations.map((reg) {
+        final event = reg['events'] as Map<String, dynamic>?;
+        final eventDate = DateTime.tryParse(event?['date'] ?? '') ?? DateTime.now();
+        final isUpcoming = eventDate.isAfter(DateTime.now());
+        
+        return _TicketData(
+          id: reg['id'] as String,
+          eventId: reg['event_id'] as String,
+          eventName: event?['title'] ?? 'Unknown Event',
+          date: _formatDate(eventDate),
+          location: event?['location'] ?? 'TBA',
+          ticketNumber: reg['ticket_code'] ?? 'TKT-${reg['id'].substring(0, 8)}',
+          status: reg['status'] ?? 'active',
+          isCheckedIn: reg['check_in_time'] != null,
+          gradientColors: isUpcoming 
+              ? [const Color(0xFF667EEA), const Color(0xFF764BA2)]
+              : [const Color(0xFF11998e), const Color(0xFF38ef7d)],
+        );
+      }).toList();
+
+      setState(() {
+        _tickets = tickets;
+        _stats = stats;
+        _isLoading = false;
+      });
+      
+      _controller.forward();
+    } catch (e) {
+      debugPrint('Error loading tickets: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final hour = date.hour > 12 ? date.hour - 12 : date.hour;
+    final amPm = date.hour >= 12 ? 'PM' : 'AM';
+    return '${months[date.month - 1]} ${date.day} • $hour:${date.minute.toString().padLeft(2, '0')} $amPm';
   }
 
   @override
@@ -56,202 +96,258 @@ class _WalletScreenState extends State<WalletScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundBlack,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // Header
-          SliverToBoxAdapter(
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ShaderMask(
-                              shaderCallback: (bounds) => const LinearGradient(
-                                colors: [Colors.white, Colors.white70],
-                              ).createShader(bounds),
-                              child: const Text(
-                                'My Tickets',
-                                style: TextStyle(
-                                  fontSize: 34,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  letterSpacing: -1,
+      body: RefreshIndicator(
+        onRefresh: _loadTickets,
+        color: AppColors.accentBlue,
+        backgroundColor: AppColors.surfaceCharcoal,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+          slivers: [
+            // Header
+            SliverToBoxAdapter(
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ShaderMask(
+                                shaderCallback: (bounds) => const LinearGradient(
+                                  colors: [Colors.white, Colors.white70],
+                                ).createShader(bounds),
+                                child: const Text(
+                                  'My Tickets',
+                                  style: TextStyle(
+                                    fontSize: 34,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    letterSpacing: -1,
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: Colors.green,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.green.withOpacity(0.5),
-                                        blurRadius: 6,
-                                      ),
-                                    ],
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: _tickets.isNotEmpty ? Colors.green : Colors.grey,
+                                      shape: BoxShape.circle,
+                                      boxShadow: _tickets.isNotEmpty ? [
+                                        BoxShadow(
+                                          color: Colors.green.withOpacity(0.5),
+                                          blurRadius: 6,
+                                        ),
+                                      ] : [],
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '${_tickets.length} upcoming events',
-                                  style: TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 14,
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _isLoading 
+                                        ? 'Loading...'
+                                        : '${_stats['upcoming']} upcoming events',
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 14,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        _HeaderButton(
-                          icon: Icons.qr_code_scanner_rounded,
-                          onTap: () => HapticFeedback.lightImpact(),
-                        ),
-                      ],
+                                ],
+                              ),
+                            ],
+                          ),
+                          _HeaderButton(
+                            icon: Icons.qr_code_scanner_rounded,
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              // Could open a QR scanner for check-in
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Quick Stats
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _StatCard(
+                        label: 'Attended',
+                        value: '${_stats['attended']}',
+                        icon: Icons.check_circle_rounded,
+                        color: Colors.green,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _StatCard(
+                        label: 'Upcoming',
+                        value: '${_stats['upcoming']}',
+                        icon: Icons.event_rounded,
+                        color: AppColors.accentBlue,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _StatCard(
+                        label: 'Saved',
+                        value: '₹${(_stats['saved'] as num).toInt()}',
+                        icon: Icons.savings_rounded,
+                        color: AppColors.accentPurple,
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-          ),
 
-          // Quick Stats
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _StatCard(
-                      label: 'Attended',
-                      value: '12',
-                      icon: Icons.check_circle_rounded,
-                      color: Colors.green,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _StatCard(
-                      label: 'Upcoming',
-                      value: '2',
-                      icon: Icons.event_rounded,
-                      color: AppColors.accentBlue,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _StatCard(
-                      label: 'Saved',
-                      value: '₹450',
-                      icon: Icons.savings_rounded,
-                      color: AppColors.accentPurple,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Section Title
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 4,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [AppColors.accentBlue, AppColors.accentPurple],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Active Tickets',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Tickets List
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  return AnimatedBuilder(
-                    animation: _controller,
-                    builder: (context, child) {
-                      final delay = index * 0.15;
-                      final animation = CurvedAnimation(
-                        parent: _controller,
-                        curve: Interval(
-                          delay.clamp(0.0, 0.7),
-                          (delay + 0.5).clamp(0.0, 1.0),
-                          curve: Curves.easeOutCubic,
+            // Section Title
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [AppColors.accentBlue, AppColors.accentPurple],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
                         ),
-                      );
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Active Tickets',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
-                      return FadeTransition(
-                        opacity: animation,
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0, 0.2),
-                            end: Offset.zero,
-                          ).animate(animation),
-                          child: child,
+            // Loading State
+            if (_isLoading)
+              const SliverToBoxAdapter(
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(60),
+                    child: CircularProgressIndicator(color: AppColors.accentBlue),
+                  ),
+                ),
+              ),
+
+            // Empty State
+            if (!_isLoading && _tickets.isEmpty)
+              SliverToBoxAdapter(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(60),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.confirmation_number_outlined,
+                          size: 80,
+                          color: AppColors.textSecondary.withOpacity(0.5),
+                        ),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'No tickets yet',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Register for events to see your tickets here',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+            // Tickets List
+            if (!_isLoading && _tickets.isNotEmpty)
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      return AnimatedBuilder(
+                        animation: _controller,
+                        builder: (context, child) {
+                          final delay = index * 0.15;
+                          final animation = CurvedAnimation(
+                            parent: _controller,
+                            curve: Interval(
+                              delay.clamp(0.0, 0.7),
+                              (delay + 0.5).clamp(0.0, 1.0),
+                              curve: Curves.easeOutCubic,
+                            ),
+                          );
+
+                          return FadeTransition(
+                            opacity: animation,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0, 0.2),
+                                end: Offset.zero,
+                              ).animate(animation),
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: _TicketCard(
+                            ticket: _tickets[index],
+                            isExpanded: _selectedTicket == index,
+                            onTap: () {
+                              HapticFeedback.mediumImpact();
+                              setState(() {
+                                _selectedTicket = _selectedTicket == index ? -1 : index;
+                              });
+                            },
+                          ),
                         ),
                       );
                     },
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _TicketCard(
-                        ticket: _tickets[index],
-                        isExpanded: _selectedTicket == index,
-                        onTap: () {
-                          HapticFeedback.mediumImpact();
-                          setState(() {
-                            _selectedTicket = _selectedTicket == index ? -1 : index;
-                          });
-                        },
-                      ),
-                    ),
-                  );
-                },
-                childCount: _tickets.length,
+                    childCount: _tickets.length,
+                  ),
+                ),
               ),
-            ),
-          ),
 
-          // Empty space at bottom
-          const SliverToBoxAdapter(child: SizedBox(height: 120)),
-        ],
+            // Empty space at bottom
+            const SliverToBoxAdapter(child: SizedBox(height: 120)),
+          ],
+        ),
       ),
     );
   }
@@ -344,17 +440,25 @@ class _StatCard extends StatelessWidget {
 }
 
 class _TicketData {
+  final String id;
+  final String eventId;
   final String eventName;
   final String date;
   final String location;
   final String ticketNumber;
+  final String status;
+  final bool isCheckedIn;
   final List<Color> gradientColors;
 
   _TicketData({
+    required this.id,
+    required this.eventId,
     required this.eventName,
     required this.date,
     required this.location,
     required this.ticketNumber,
+    required this.status,
+    required this.isCheckedIn,
     required this.gradientColors,
   });
 }
@@ -372,6 +476,9 @@ class _TicketCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Generate QR data for scanning
+    final qrData = 'RYU|${ticket.eventId}|${ticket.ticketNumber}|${AuthManager.instance.userId}';
+    
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -419,15 +526,15 @@ class _TicketCard extends StatelessWidget {
                             Container(
                               width: 6,
                               height: 6,
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
+                              decoration: BoxDecoration(
+                                color: ticket.isCheckedIn ? Colors.green : Colors.white,
                                 shape: BoxShape.circle,
                               ),
                             ),
                             const SizedBox(width: 6),
-                            const Text(
-                              'ACTIVE',
-                              style: TextStyle(
+                            Text(
+                              ticket.isCheckedIn ? 'CHECKED IN' : 'ACTIVE',
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
@@ -438,7 +545,7 @@ class _TicketCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        ticket.ticketNumber,
+                        ticket.ticketNumber.toUpperCase(),
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.7),
                           fontSize: 11,
@@ -564,14 +671,23 @@ class _TicketCard extends StatelessWidget {
                       ),
                       child: Column(
                         children: [
-                          const Icon(
-                            Icons.qr_code_2_rounded,
+                          // Real QR Code
+                          QrImageView(
+                            data: qrData,
+                            version: QrVersions.auto,
                             size: 140,
-                            color: Colors.black,
+                            backgroundColor: Colors.white,
+                            errorStateBuilder: (ctx, err) {
+                              return const SizedBox(
+                                width: 140,
+                                height: 140,
+                                child: Icon(Icons.error, size: 40, color: Colors.red),
+                              );
+                            },
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            ticket.ticketNumber,
+                            ticket.ticketNumber.toUpperCase(),
                             style: const TextStyle(
                               color: Colors.black54,
                               fontSize: 11,
@@ -582,26 +698,7 @@ class _TicketCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _TicketActionButton(
-                            icon: Icons.share_rounded,
-                            label: 'Share',
-                            onTap: () {},
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _TicketActionButton(
-                            icon: Icons.download_rounded,
-                            label: 'Save',
-                            onTap: () {},
-                          ),
-                        ),
-                      ],
-                    ),
+
                   ],
                 ),
               ),
@@ -653,46 +750,4 @@ class _TicketInfoChip extends StatelessWidget {
   }
 }
 
-class _TicketActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
 
-  const _TicketActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: Colors.white, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

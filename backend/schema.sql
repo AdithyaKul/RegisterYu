@@ -7,11 +7,27 @@ create table profiles (
   email text,
   full_name text,
   avatar_url text,
-  role text default 'student' check (role in ('student', 'organizer', 'admin')),
+  role text default 'student' check (role in ('student', 'volunteer', 'organizer', 'admin')),
   college_id text,
+  department text,
   phone text,
+  nfc_tag_id text unique, -- For NFC card login
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+-- Auto-create profile on user signup
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, email, full_name, role)
+  values (new.id, new.email, new.raw_user_meta_data->>'full_name', 'student');
+  return new;
+end;
+$$ language plpgsql security definer;
+
+create or replace trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
 
 -- 2. Events Table
 create table events (

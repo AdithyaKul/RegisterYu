@@ -40,6 +40,16 @@ dependencies:
   shimmer: ^3.0.0
   url_launcher: ^6.3.2
   razorpay_flutter: ^1.4.0
+  
+  # Backend & Auth
+  supabase_flutter: ^2.8.4
+  google_sign_in: ^6.2.2
+  
+  # QR Code Generation
+  qr_flutter: ^4.1.0
+  
+  # Local Storage
+  shared_preferences: ^2.3.5
 
 dev_dependencies:
   flutter_test:

@@ -23,7 +23,7 @@ create policy "Public events are viewable by everyone" on events for select usin
 create policy "Staff can view assigned events" on events for select using (
   exists (
     select 1 from event_assignments 
-    where event_assignments.event_id = events.id 
+    where event_assignments.event_id = events.id  
     and event_assignments.user_id = auth.uid()
   )
 );
@@ -59,3 +59,56 @@ create policy "Admins can manage profiles" on profiles for all using (
     and my_profile.role in ('admin', 'organizer')
   )
 );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

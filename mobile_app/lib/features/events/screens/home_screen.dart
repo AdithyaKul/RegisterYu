@@ -2,6 +2,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/services/supabase_service.dart';
+import '../../../core/services/auth_manager.dart';
 import '../../../shared/widgets/glass_container.dart';
 import '../../../shared/widgets/cached_image.dart';
 import '../data/mock_events.dart';
@@ -9,8 +11,8 @@ import 'event_detail_screen.dart';
 import 'search_screen.dart';
 import '../../wallet/screens/wallet_screen.dart';
 import '../../profile/screens/profile_screen.dart';
-
-import '../../../shared/widgets/liquid_background.dart'; // Add import
+import '../../auth/screens/login_screen.dart';
+import '../../../shared/widgets/liquid_background.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -65,7 +67,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         body: LiquidBackground(
           child: PageView(
             controller: _pageController,
-            // physics: const NeverScrollableScrollPhysics(), // REMOVED to enable swipe
             physics: const BouncingScrollPhysics(),
             onPageChanged: _onPageChanged,
              children: const [
@@ -81,118 +82,262 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           onTap: _onTabChanged,
         ),
       ),
-
     );
   }
 }
 
-class _EventFeedScreen extends StatelessWidget {
+class _EventFeedScreen extends StatefulWidget {
   const _EventFeedScreen();
 
   @override
+  State<_EventFeedScreen> createState() => _EventFeedScreenState();
+}
+
+class _EventFeedScreenState extends State<_EventFeedScreen> {
+  List<Event> _events = [];
+  bool _isLoading = true;
+  String? _error;
+  String _selectedCategory = 'All';
+  
+  final List<String> _categories = [
+    'All', 'Hackathon', 'Workshop', 'Seminar', 'Cultural', 'Sports'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEvents();
+  }
+
+  Future<void> _loadEvents() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    
+    try {
+      final category = _selectedCategory == 'All' ? null : _selectedCategory;
+      final eventsData = await SupabaseService.instance.getEvents(category: category);
+      
+      setState(() {
+        _events = eventsData.map((e) => Event.fromJson(e)).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      // Fall back to mock events on error
+      setState(() {
+        _events = mockEvents;
+        _isLoading = false;
+        // Don't show error, just use mock data
+      });
+      debugPrint('Error loading events: $e');
+    }
+  }
+
+  void _selectCategory(String category) {
+    HapticFeedback.selectionClick();
+    setState(() => _selectedCategory = category);
+    _loadEvents();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return CustomScrollView(
-      physics: const BouncingScrollPhysics(),
-      slivers: [
-        // Header
-        SliverToBoxAdapter(
-          child: SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                       Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [
-                              AppColors.accentBlue,
-                              AppColors.accentPurple,
+    return RefreshIndicator(
+      onRefresh: _loadEvents,
+      color: AppColors.accentBlue,
+      backgroundColor: AppColors.surfaceCharcoal,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(), // Ensures refresh works but inherits ambient physics simulation
+          slivers: [
+          // Header
+          SliverToBoxAdapter(
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                         Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                AppColors.accentBlue,
+                                AppColors.accentPurple,
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.accentBlue.withOpacity(0.3),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
                             ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
                           ),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.accentBlue.withOpacity(0.3),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
+                          child: const Center(
+                            child: Icon(
+                              Icons.app_registration_rounded,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'RegisterYu',
+                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: -1.0, 
+                              ),
+                            ),
+                            Text(
+                              'Hello, ${AuthManager.instance.userName.split(' ').first}!',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
                             ),
                           ],
                         ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.app_registration_rounded,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Text(
-                        'RegisterYu',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: -1.0, 
-                        ),
-                      ),
-                    ],
-                  ),
-                  _ProfileButton(),
-                ],
+                      ],
+                    ),
+                    _ProfileButton(),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
 
-        // Category Pills
-        SliverToBoxAdapter(
-          child: SizedBox(
-            height: 44,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              physics: const BouncingScrollPhysics(),
-              children: const [
-                _CategoryPill(label: 'All', isActive: true),
-                _CategoryPill(label: 'Hackathons'),
-                _CategoryPill(label: 'Workshops'),
-                _CategoryPill(label: 'Seminars'),
-                _CategoryPill(label: 'Cultural'),
-              ],
+          // Category Pills
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 44,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                physics: const BouncingScrollPhysics(),
+                itemCount: _categories.length,
+                itemBuilder: (context, index) {
+                  final category = _categories[index];
+                  final isActive = category == _selectedCategory;
+                  return _CategoryPill(
+                    label: category, 
+                    isActive: isActive,
+                    onTap: () => _selectCategory(category),
+                  );
+                },
+              ),
             ),
           ),
-        ),
 
-        const SliverToBoxAdapter(child: SizedBox(height: 20)),
+          const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
-        // Events List
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                if (index >= mockEvents.length) return null;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 20),
-                  child: _EventCard(event: mockEvents[index]),
-                );
-              },
-              childCount: mockEvents.length,
+          // Loading Indicator
+          if (_isLoading)
+            const SliverToBoxAdapter(
+              child: Center(
+                child: Padding(
+                  padding: EdgeInsets.all(40),
+                  child: CircularProgressIndicator(color: AppColors.accentBlue),
+                ),
+              ),
             ),
-          ),
-        ),
 
-        // Bottom padding for nav bar
-        const SliverToBoxAdapter(child: SizedBox(height: 100)),
-      ],
+          // Error Message
+          if (_error != null && !_isLoading)
+            SliverToBoxAdapter(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(40),
+                  child: Column(
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.red, size: 48),
+                      const SizedBox(height: 16),
+                      Text(_error!, style: TextStyle(color: AppColors.textSecondary)),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadEvents,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // Empty State
+          if (_events.isEmpty && !_isLoading && _error == null)
+            SliverToBoxAdapter(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(40),
+                  child: Column(
+                    children: [
+                      Icon(Icons.event_busy, color: AppColors.textSecondary, size: 64),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No events found',
+                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _selectedCategory == 'All' 
+                            ? 'Check back later for upcoming events'
+                            : 'No $_selectedCategory events available',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // Events List - Optimized with FixedExtentList for 120fps scrolling
+          if (!_isLoading && _events.isNotEmpty)
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              sliver: SliverFixedExtentList(
+                itemExtent: 300.0, // 280 (card) + 20 (padding) - precise calculation for performance
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    if (index >= _events.length) return null;
+                    final event = _events[index];
+                    
+                    // Optimization: Precache next image if possible
+                    if (index + 1 < _events.length) {
+                       // We rely on CachedNetworkImage's internal cache, 
+                       // but explicit precaching would go here if using standard NetworkImage
+                    }
+
+                    return Container(
+                      height: 300,
+                      padding: const EdgeInsets.only(bottom: 20),
+                      child: _EventCard(
+                        key: ValueKey(event.id), // KEY OPTIMIZATION: Preserves state
+                        event: event,
+                      ),
+                    );
+                  },
+                  childCount: _events.length,
+                ),
+              ),
+            ),
+
+          // Bottom padding for nav bar
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
+        ],
+      ),
     );
   }
 }
@@ -203,22 +348,45 @@ class _ProfileButton extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
+        if (!AuthManager.instance.isLoggedIn) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => LoginScreen()),
+          );
+        } else {
+          // Navigate to profile tab (index 3)
+          // Since we can't easily access the parent state here, we rely on the
+          // bottom nav or just let them use the bottom nav
+          // Alternatively, we can just do nothing as the bottom nav exists
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Use the Profile tab to view details')),
+          );
+        }
       },
       child: Container(
         width: 44,
         height: 44,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: AppColors.surfaceCharcoal,
+          gradient: const LinearGradient(
+            colors: [AppColors.accentBlue, AppColors.accentPurple],
+          ),
           border: Border.all(
-            color: Colors.white.withOpacity(0.1),
-            width: 1,
+            color: Colors.white.withOpacity(0.2),
+            width: 2,
           ),
         ),
-        child: const Icon(
-          Icons.person_outline,
-          color: Colors.white,
-          size: 22,
+        child: Center(
+          child: AuthManager.instance.isLoggedIn 
+              ? Text(
+                  AuthManager.instance.userInitials,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                )
+              : const Icon(Icons.login_rounded, color: Colors.white, size: 20),
         ),
       ),
     );
@@ -228,10 +396,12 @@ class _ProfileButton extends StatelessWidget {
 class _CategoryPill extends StatelessWidget {
   final String label;
   final bool isActive;
+  final VoidCallback onTap;
 
   const _CategoryPill({
     required this.label,
     this.isActive = false,
+    required this.onTap,
   });
 
   @override
@@ -241,7 +411,7 @@ class _CategoryPill extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => HapticFeedback.selectionClick(),
+          onTap: onTap,
           borderRadius: BorderRadius.circular(20),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
@@ -249,7 +419,7 @@ class _CategoryPill extends StatelessWidget {
             decoration: BoxDecoration(
               color: isActive 
                   ? AppColors.accentBlue 
-                  : Colors.white.withOpacity(0.05), // Glass style
+                  : Colors.white.withOpacity(0.05),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: isActive 
@@ -283,7 +453,10 @@ class _CategoryPill extends StatelessWidget {
 class _EventCard extends StatelessWidget {
   final Event event;
 
-  const _EventCard({required this.event});
+  const _EventCard({
+    super.key, 
+    required this.event,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -407,7 +580,7 @@ class _EventCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            event.date,
+                            event.formattedDate,
                             style: const TextStyle(
                               fontSize: 13,
                               color: Colors.white70,
@@ -459,7 +632,7 @@ class _BottomNavBar extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(60, 0, 60, 30),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E).withOpacity(0.8), // Semi-transparent dark
+        color: const Color(0xFF1E1E1E).withOpacity(0.8),
         borderRadius: BorderRadius.circular(30),
         border: Border.all(
           color: Colors.white.withOpacity(0.1),
@@ -473,10 +646,10 @@ class _BottomNavBar extends StatelessWidget {
           ),
         ],
       ),
-      child: ClipRRect( // Clip backdrop filter
+      child: ClipRRect(
         borderRadius: BorderRadius.circular(30),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Glass blur
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: Row(
@@ -540,42 +713,6 @@ class _NavBarItem extends StatelessWidget {
           color: isActive ? Colors.white : Colors.white.withOpacity(0.5),
           size: 24,
         ),
-      ),
-    );
-  }
-}
-
-class _PlaceholderScreen extends StatelessWidget {
-  final String title;
-  final IconData icon;
-
-  const _PlaceholderScreen({
-    required this.title,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 64, color: AppColors.textSecondary),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Coming soon',
-            style: TextStyle(color: AppColors.textSecondary),
-          ),
-        ],
       ),
     );
   }

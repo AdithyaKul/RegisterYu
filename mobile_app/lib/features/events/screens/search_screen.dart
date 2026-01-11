@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/services/supabase_service.dart';
 import '../../../shared/widgets/cached_image.dart';
 import '../data/mock_events.dart';
 import 'event_detail_screen.dart';
@@ -17,7 +19,10 @@ class _SearchScreenState extends State<SearchScreen> {
   final FocusNode _focusNode = FocusNode();
   String _selectedCategory = 'All';
   List<Event> _filteredEvents = [];
+  List<Event> _trendingEvents = [];
   bool _isSearching = false;
+  bool _isLoading = false;
+  List<String> _recentSearches = [];
 
   final List<String> _categories = [
     'All',
@@ -28,17 +33,13 @@ class _SearchScreenState extends State<SearchScreen> {
     'Sports',
   ];
 
-  final List<String> _recentSearches = [
-    'Hackathon',
-    'AI Workshop',
-    'Cloud Computing',
-  ];
-
   @override
   void initState() {
     super.initState();
-    _filteredEvents = mockEvents;
     _searchController.addListener(_onSearchChanged);
+    _focusNode.addListener(() => setState(() {}));
+    _loadRecentSearches();
+    _loadTrendingEvents();
   }
 
   @override
@@ -48,27 +49,151 @@ class _SearchScreenState extends State<SearchScreen> {
     super.dispose();
   }
 
+  Future<void> _loadRecentSearches() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final searches = prefs.getStringList('recent_searches') ?? [];
+      setState(() => _recentSearches = searches);
+    } catch (e) {
+      debugPrint('Error loading recent searches: $e');
+    }
+  }
+
+  Future<void> _saveRecentSearch(String query) async {
+    if (query.trim().isEmpty) return;
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final searches = prefs.getStringList('recent_searches') ?? [];
+      
+      // Remove if already exists, then add to front
+      searches.remove(query);
+      searches.insert(0, query);
+      
+      // Keep only last 5 searches
+      if (searches.length > 5) {
+        searches.removeLast();
+      }
+      
+      await prefs.setStringList('recent_searches', searches);
+      setState(() => _recentSearches = searches);
+    } catch (e) {
+      debugPrint('Error saving recent search: $e');
+    }
+  }
+
+  Future<void> _clearRecentSearches() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('recent_searches');
+      setState(() => _recentSearches = []);
+    } catch (e) {
+      debugPrint('Error clearing searches: $e');
+    }
+  }
+
+  Future<void> _loadTrendingEvents() async {
+    try {
+      final eventsData = await SupabaseService.instance.getEvents();
+      setState(() {
+        _trendingEvents = eventsData.take(3).map((e) => Event.fromJson(e)).toList();
+      });
+    } catch (e) {
+      // Use mock data as fallback
+      setState(() => _trendingEvents = mockEvents.take(3).toList());
+    }
+  }
+
   void _onSearchChanged() {
-    final query = _searchController.text.toLowerCase();
-    setState(() {
-      _isSearching = query.isNotEmpty;
-      _filteredEvents = mockEvents.where((event) {
-        final matchesQuery = event.title.toLowerCase().contains(query) ||
-            event.category.toLowerCase().contains(query) ||
-            event.location.toLowerCase().contains(query);
+    final query = _searchController.text.trim();
+    setState(() => _isSearching = query.isNotEmpty || _selectedCategory != 'All');
+    
+    if (query.isNotEmpty) {
+      _performSearch(query);
+    } else if (_selectedCategory != 'All') {
+      _filterByCategory();
+    }
+  }
+
+  Future<void> _performSearch(String query) async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final eventsData = await SupabaseService.instance.searchEvents(query);
+      var events = eventsData.map((e) => Event.fromJson(e)).toList();
+      
+      // Also filter by category if selected
+      if (_selectedCategory != 'All') {
+        events = events.where((e) => e.category == _selectedCategory).toList();
+      }
+      
+      setState(() {
+        _filteredEvents = events;
+        _isLoading = false;
+      });
+      
+      // Save to recent searches
+      _saveRecentSearch(query);
+    } catch (e) {
+      // Fallback to mock data search
+      final events = mockEvents.where((event) {
+        final matchesQuery = event.title.toLowerCase().contains(query.toLowerCase()) ||
+            event.category.toLowerCase().contains(query.toLowerCase()) ||
+            event.location.toLowerCase().contains(query.toLowerCase());
         final matchesCategory = _selectedCategory == 'All' ||
             event.category == _selectedCategory;
         return matchesQuery && matchesCategory;
       }).toList();
-    });
+      
+      setState(() {
+        _filteredEvents = events;
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _filterByCategory() async {
+    if (_selectedCategory == 'All') {
+      setState(() {
+        _filteredEvents = [];
+        _isSearching = false;
+      });
+      return;
+    }
+    
+    setState(() => _isLoading = true);
+    
+    try {
+      final eventsData = await SupabaseService.instance.getEvents(category: _selectedCategory);
+      setState(() {
+        _filteredEvents = eventsData.map((e) => Event.fromJson(e)).toList();
+        _isLoading = false;
+        _isSearching = true;
+      });
+    } catch (e) {
+      // Fallback
+      setState(() {
+        _filteredEvents = mockEvents.where((e) => e.category == _selectedCategory).toList();
+        _isLoading = false;
+        _isSearching = true;
+      });
+    }
   }
 
   void _selectCategory(String category) {
     HapticFeedback.selectionClick();
-    setState(() {
-      _selectedCategory = category;
-      _onSearchChanged();
-    });
+    setState(() => _selectedCategory = category);
+    
+    if (_searchController.text.isNotEmpty) {
+      _performSearch(_searchController.text);
+    } else {
+      _filterByCategory();
+    }
+  }
+
+  void _onRecentSearchTap(String search) {
+    _searchController.text = search;
+    _onSearchChanged();
   }
 
   @override
@@ -120,7 +245,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           Icons.search_rounded,
                           color: AppColors.textSecondary,
                         ),
-                        suffixIcon: _isSearching
+                        suffixIcon: _searchController.text.isNotEmpty
                             ? IconButton(
                                 icon: Icon(
                                   Icons.close_rounded,
@@ -129,6 +254,10 @@ class _SearchScreenState extends State<SearchScreen> {
                                 onPressed: () {
                                   _searchController.clear();
                                   _focusNode.unfocus();
+                                  setState(() {
+                                    _selectedCategory = 'All';
+                                    _isSearching = false;
+                                  });
                                 },
                               )
                             : null,
@@ -138,7 +267,11 @@ class _SearchScreenState extends State<SearchScreen> {
                           vertical: 16,
                         ),
                       ),
-                      onTap: () => setState(() {}),
+                      onSubmitted: (value) {
+                        if (value.isNotEmpty) {
+                          _saveRecentSearch(value);
+                        }
+                      },
                     ),
                   ),
                 ],
@@ -206,9 +339,13 @@ class _SearchScreenState extends State<SearchScreen> {
 
             // Content
             Expanded(
-              child: _isSearching || _selectedCategory != 'All'
-                  ? _buildSearchResults()
-                  : _buildDiscoverContent(),
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AppColors.accentBlue),
+                    )
+                  : _isSearching
+                      ? _buildSearchResults()
+                      : _buildDiscoverContent(),
             ),
           ],
         ),
@@ -235,7 +372,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
               ),
               TextButton(
-                onPressed: () {},
+                onPressed: _clearRecentSearches,
                 child: Text(
                   'Clear',
                   style: TextStyle(color: AppColors.textSecondary),
@@ -249,10 +386,7 @@ class _SearchScreenState extends State<SearchScreen> {
             runSpacing: 10,
             children: _recentSearches.map((search) {
               return GestureDetector(
-                onTap: () {
-                  _searchController.text = search;
-                  _onSearchChanged();
-                },
+                onTap: () => _onRecentSearchTap(search),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -297,7 +431,19 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        ...mockEvents.take(3).map((event) => _TrendingCard(event: event)),
+        
+        if (_trendingEvents.isEmpty)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: Text(
+                'Loading trending events...',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            ),
+          )
+        else
+          ..._trendingEvents.map((event) => _TrendingCard(event: event)),
         
         const SizedBox(height: 100),
       ],
@@ -414,7 +560,7 @@ class _TrendingCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    event.date,
+                    event.formattedDate,
                     style: TextStyle(
                       fontSize: 13,
                       color: AppColors.textSecondary,
@@ -540,7 +686,7 @@ class _SearchResultCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        event.date,
+                        event.formattedDate,
                         style: TextStyle(
                           fontSize: 13,
                           color: AppColors.textSecondary,
