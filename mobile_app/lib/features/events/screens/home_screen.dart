@@ -65,17 +65,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       child: Scaffold(
         backgroundColor: AppColors.backgroundBlack,
         extendBody: true,
-        body: LiquidBackground(
-          child: PageView(
-            controller: _pageController,
-            onPageChanged: _onPageChanged,
-             children: const [
-              _EventFeedScreen(),
-              SearchScreen(),
-              WalletScreen(),
-              ProfileScreen(),
-            ],
-          ),
+        body: PageView(
+          controller: _pageController,
+          physics: const ClampingScrollPhysics(), // No bounce, Android native
+          pageSnapping: true,
+          onPageChanged: _onPageChanged,
+           children: const [
+            _EventFeedScreen(),
+            SearchScreen(),
+            WalletScreen(),
+            ProfileScreen(),
+          ],
         ),
         bottomNavigationBar: _BottomNavBar(
           currentIndex: _currentIndex,
@@ -147,7 +147,8 @@ class _EventFeedScreenState extends State<_EventFeedScreen> {
       color: AppColors.accentBlue,
       backgroundColor: AppColors.surfaceCharcoal,
         child: CustomScrollView(
-          cacheExtent: 1000.0, // Optimized cache - not too much, not too little
+          physics: const ClampingScrollPhysics(), // No infinite bounce
+          cacheExtent: 500.0, // Minimal cache for speed
           slivers: [
           // Header
           SliverToBoxAdapter(
