@@ -1,44 +1,65 @@
-# 🚧 Known Issues & Pending Tasks
+# Known Issues
 
-This document tracks the current known issues, pending configurations, and future planned improvements for the **RegisterYu** application.
+## Current Limitations (v1.0.5)
 
-## 🔴 Critical - Needs Immediate Action
+### Backend/Database
+- **Manual Migration Required**: The `profiles` table migration (`backend/migrations/20260111_add_student_details.sql`) must be run manually in Supabase SQL Editor for profile updates to work
+- **AuthManager Cache**: Profile updates don't immediately refresh the cached user name in the header until app restart
 
-### 1. Supabase RLS Policy Recursion (✅ Resolved)
-- **Status**: Fixed via SQL patch.
-- **Reference**: If you set up a new environment, you MUST run this one-time fix:
-  ```sql
-  DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON profiles;
-  DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
-  DROP POLICY IF EXISTS "Enable insert for authenticated users" ON profiles;
-  DROP POLICY IF EXISTS "Allow profile creation" ON profiles;
+### Mobile App
+- **Image Loading**: First-time image loads may cause brief stutters (cached afterward)
+- **NFC Integration**: NFC-based check-in not yet implemented
+- **Offline Mode**: App requires internet connection for all operations
 
-  CREATE POLICY "Public profiles are viewable by everyone" ON profiles FOR SELECT USING (true);
-  CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
-  CREATE POLICY "Allow profile creation" ON profiles FOR INSERT WITH CHECK (true);
-  ```
+### Admin Dashboard
+- **RBAC Configuration**: Role-Based Access Control requires manual setup in Supabase
+- **Real-time Updates**: Dashboard doesn't auto-refresh; requires manual page reload
+- **Certificate Generation**: Automated certificate generator not yet implemented
 
-### 2. Google Sign-In (✅ Configured)
-- **Status**: Active.
-- **Note**: Ensure you use the correct SHA-1 fingerprint if you change keystores (e.g., for Play Store release). See `GOOGLE_AUTH_SETUP.md`.
+### Scanner App
+- **In Development**: Admin scanner app for QR ticket verification is work-in-progress
+- **Offline Scanning**: Offline mode with sync capability not yet available
 
-## 🟡 High Priority - UX & Flow
+## Workarounds
 
-### 3. Profile Completion Flow
-- **Current Behavior**: If a user logs in but has missing data (College ID/Department), the app prompts them via a SnackBar when trying to register.
-- **Required Improvement**: Implement a dedicated "Complete Your Profile" screen or modal that writes to the `profiles` table before allowing event registration.
+### Profile Update Not Saving
+**Issue**: Profile changes don't save  
+**Fix**: Run the SQL migration in Supabase:
+```sql
+-- Execute backend/migrations/20260111_add_student_details.sql in Supabase SQL Editor
+```
 
-### 4. Image Decoding Logs
-- **Issue**: Android logs show `E/FlutterJNI: Failed to decode image` warnings on startup.
-- **Impact**: Non-fatal, app works fine, but indicates malformed image URLs or SVG rendering issues.
-- **Fix**: formatting of image URLs in the database or `CachedNetworkImage` error handling.
+### Scrolling Performance
+**Status**: RESOLVED in v1.0.5
+- Removed animated background
+- Implemented ClampingScrollPhysics
+- Optimized cache settings
 
-## 🟢 Future / Enhancement
+### Google Sign-In Issues
+**Issue**: SHA-1 fingerprint mismatch  
+**Fix**: Follow [GOOGLE_AUTH_SETUP.md](./GOOGLE_AUTH_SETUP.md) to configure correctly
 
-### 5. Payment Gateway Integration
-- **Status**: Razorpay package is installed and basic service logic exists.
-- **Action**: Replace test API keys with live keys in `upi_payment_service.dart`. Validate the flow with a real small transaction.
+## Planned Fixes
 
-### 6. Admin Dashboard Sync
-- **Status**: Mobile app is using `public.events`.
-- **Action**: Ensure the Web Admin Dashboard writes to the exactly same table and uses compatible RLS policies.
+### Short Term (Next Release)
+- [ ] Auto-refresh AuthManager profile cache
+- [ ] Implement proper loading states for images
+- [ ] Add offline indicator
+
+### Medium Term
+- [ ] Complete scanner app with offline support
+- [ ] Implement push notifications
+- [ ] Add certificate generator
+
+### Long Term
+- [ ] Full offline mode with sync
+- [ ] NFC-based check-in
+- [ ] Advanced analytics dashboard
+
+---
+
+**Reporting Issues**: Please create an issue on [GitHub](https://github.com/AdithyaKul/RegisterYu/issues) with:
+- App version
+- Device/OS info
+- Steps to reproduce
+- Screenshots if applicable
