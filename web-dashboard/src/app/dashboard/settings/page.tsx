@@ -211,7 +211,7 @@ export default function SettingsPage() {
                                         type="text"
                                         className="input"
                                         placeholder="yourbusiness@upi"
-                                        defaultValue="sambhram@okicici"
+                                        defaultValue="kul.adithya@axl"
                                     />
                                 </div>
                             </div>

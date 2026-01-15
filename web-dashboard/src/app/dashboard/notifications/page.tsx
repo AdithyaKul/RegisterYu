@@ -1,13 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getNotificationEvents, getNotificationAttendeeCount } from './actions';
 import styles from './notifications.module.css';
 
 interface Event {
     id: string;
     name: string;
-    // other fields
 }
 
 export default function NotificationsPage() {
@@ -21,28 +20,17 @@ export default function NotificationsPage() {
     const [sending, setSending] = useState(false);
 
     useEffect(() => {
-        // Fetch events for dropdown
         async function loadEvents() {
-            const { data } = await supabase.from('events').select('id, name');
-            if (data) setEvents(data);
+            const data = await getNotificationEvents();
+            setEvents(data);
         }
         loadEvents();
     }, []);
 
     useEffect(() => {
-        // Fetch attendee count when event changes
         async function loadCount() {
-            if (!selectedEvent) {
-                // All events
-                const { count } = await supabase.from('registrations').select('*', { count: 'exact', head: true });
-                setAttendeeCount(count || 0);
-            } else {
-                const { count } = await supabase
-                    .from('registrations')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('event_id', selectedEvent);
-                setAttendeeCount(count || 0);
-            }
+            const count = await getNotificationAttendeeCount(selectedEvent || undefined);
+            setAttendeeCount(count);
         }
         loadCount();
     }, [selectedEvent]);
@@ -52,8 +40,7 @@ export default function NotificationsPage() {
         setSending(true);
 
         // Simulation of sending
-        // In a real app, call an Edge Function here
-
+        // In a real app, call a Server Action here to trigger Edge Function/Email API
         await new Promise(resolve => setTimeout(resolve, 2000));
 
         alert(`Successfully queued ${notificationType} to ${attendeeCount} recipients!`);

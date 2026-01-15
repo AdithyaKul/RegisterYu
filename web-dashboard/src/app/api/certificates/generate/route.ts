@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
         const pdfBytes = await pdfDoc.save();
 
         // Return the response
-        return new NextResponse(pdfBytes, {
+        return new NextResponse(Buffer.from(pdfBytes), {
             headers: {
                 'Content-Type': 'application/pdf',
                 'Content-Disposition': `inline; filename="certificate.pdf"`,

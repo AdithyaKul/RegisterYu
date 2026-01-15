@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import { getCheckinStats, performCheckIn } from './actions';
 import styles from './checkin.module.css';
 
 interface CheckinRecord {
@@ -27,59 +27,20 @@ export default function CheckinPage() {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        fetchStats();
-        const interval = setInterval(fetchStats, 30000); // Live refresh every 30s
+        fetchStatsLine();
+        const interval = setInterval(fetchStatsLine, 30000); // Live refresh every 30s
         return () => clearInterval(interval);
     }, []);
 
-    async function fetchStats() {
+    async function fetchStatsLine() {
         try {
-            // Fetch total checkins
-            const { count: checkedInCount } = await supabase
-                .from('registrations')
-                .select('*', { count: 'exact', head: true })
-                .eq('status', 'checked_in');
-
-            // Fetch pending
-            const { count: pendingCount } = await supabase
-                .from('registrations')
-                .select('*', { count: 'exact', head: true })
-                .neq('status', 'checked_in');
-
-            // Fetch recent checkins
-            const { data: recent } = await supabase
-                .from('registrations')
-                .select('*, profiles(full_name), events(title, name)')
-                .eq('status', 'checked_in')
-                .order('check_in_time', { ascending: false }) // Use check_in_time
-                .limit(10);
-
-            if (recent) {
-                const mapped: CheckinRecord[] = recent.map(r => ({
-                    id: r.id,
-                    name: r.profiles?.full_name || 'Guest',
-                    event: r.events?.title || r.events?.name || 'Event',
-                    ticketId: r.ticket_code || r.id.substring(0, 8).toUpperCase(),
-                    time: r.check_in_time ? new Date(r.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now',
-                    success: true
-                }));
-                setRecentCheckins(mapped);
-
-                // Estimate last hour using check_in_time
-                const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
-                const { count: lastHourCount } = await supabase
-                    .from('registrations')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('status', 'checked_in')
-                    .gte('check_in_time', oneHourAgo);
-
-                setStats({
-                    totalCheckins: checkedInCount || 0,
-                    pending: pendingCount || 0,
-                    lastHour: lastHourCount || 0
-                });
-            }
-
+            const data = await getCheckinStats();
+            setStats({
+                totalCheckins: data.totalCheckins,
+                pending: data.pending,
+                lastHour: data.lastHour
+            });
+            setRecentCheckins(data.recent);
         } catch (e) {
             console.error(e);
         }
@@ -92,71 +53,38 @@ export default function CheckinPage() {
         const inputId = manualInput.trim();
 
         try {
-            // Find by ticket_code (8 chars) which is user-facing
-            const { data: ticket, error } = await supabase
-                .from('registrations')
-                .select('*, profiles(full_name), events(title, name)')
-                .eq('ticket_code', inputId)
-                .single();
+            const result = await performCheckIn(inputId);
 
-            if (error || !ticket) {
-                setLastScan({
+            if (result.success) {
+                setLastScan(result.record);
+                // Optimistically update recent checkins
+                setRecentCheckins(prev => [result.record, ...prev]);
+                // Optimistically update stats
+                setStats(prev => ({
+                    ...prev,
+                    totalCheckins: prev.totalCheckins + 1,
+                    pending: prev.pending - 1,
+                    lastHour: prev.lastHour + 1
+                }));
+                setManualInput('');
+            } else {
+                setLastScan(result.record || {
                     id: 'error',
-                    name: 'Unknown Ticket',
+                    name: 'Duplicate Scan',
                     event: 'N/A',
                     ticketId: inputId,
                     time: new Date().toLocaleTimeString(),
                     success: false
                 });
-                return;
+                alert(result.message);
             }
 
-            if (ticket.status === 'checked_in') {
-                setLastScan({
-                    id: ticket.id,
-                    name: ticket.profiles?.full_name || 'Guest',
-                    event: ticket.events?.title || ticket.events?.name || 'Event',
-                    ticketId: ticket.ticket_code || ticket.id.substring(0, 8).toUpperCase(),
-                    time: new Date().toLocaleTimeString(),
-                    success: false
-                });
-                alert("Already checked in!");
-                return;
-            }
-
-            // Check in update
-            const { error: updateError } = await supabase
-                .from('registrations')
-                .update({ status: 'checked_in', check_in_time: new Date().toISOString() })
-                .eq('id', ticket.id);
-
-            if (updateError) throw updateError;
-
-            const newRecord = {
-                id: ticket.id,
-                name: ticket.profiles?.full_name || 'Guest',
-                event: ticket.events?.title || ticket.events?.name || 'Event',
-                ticketId: ticket.ticket_code || ticket.id.substring(0, 8).toUpperCase(),
-                time: new Date().toLocaleTimeString(),
-                success: true
-            };
-
-            setLastScan(newRecord);
-            setRecentCheckins(prev => [newRecord, ...prev]);
-            setStats(prev => ({
-                ...prev,
-                totalCheckins: prev.totalCheckins + 1,
-                pending: prev.pending - 1,
-                lastHour: prev.lastHour + 1
-            }));
-            setManualInput('');
-
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
             setLastScan({
                 id: 'error',
-                name: 'System Error',
-                event: '-',
+                name: 'Error / Invalid Ticket',
+                event: 'N/A',
                 ticketId: inputId,
                 time: new Date().toLocaleTimeString(),
                 success: false

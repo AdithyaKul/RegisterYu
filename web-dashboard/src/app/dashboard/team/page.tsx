@@ -12,6 +12,8 @@ interface Profile {
     created_at: string;
 }
 
+import { getTeamMembers, updateTeamMemberRole } from './actions';
+
 export default function TeamPage() {
     const [users, setUsers] = useState<Profile[]>([]);
     const [loading, setLoading] = useState(true);
@@ -20,29 +22,27 @@ export default function TeamPage() {
     const [currentUserRole, setCurrentUserRole] = useState('');
 
     useEffect(() => {
-        fetchUsers();
+        loadData();
     }, []);
 
-    async function fetchUsers() {
+    async function loadData() {
         setLoading(true);
-        // Check current user role first
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-            setCurrentUserRole(profile?.role || 'student');
-        }
+        try {
+            // Check current user role for UI context (still client-side)
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+                setCurrentUserRole(profile?.role || 'student');
+            }
 
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            console.error(error);
-        } else {
-            setUsers(data || []);
+            // Fetch all users using Server Action (bypasses RLS)
+            const data = await getTeamMembers();
+            setUsers(data as Profile[]);
+        } catch (error) {
+            console.error('Failed to load team:', error);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     }
 
     const handleEditRole = (user: Profile) => {
@@ -70,7 +70,7 @@ export default function TeamPage() {
                     <h1>Global Team Management</h1>
                     <p className={styles.subtitle}>Manage system-wide roles and access permissions.</p>
                 </div>
-                <button className="btn btn-primary" onClick={fetchUsers}>
+                <button className="btn btn-primary" onClick={loadData}>
                     Refresh List
                 </button>
             </header>
@@ -126,7 +126,7 @@ export default function TeamPage() {
                 <EditRoleModal
                     user={selectedUser}
                     onClose={() => setShowEditModal(false)}
-                    onUpdate={fetchUsers}
+                    onUpdate={loadData}
                 />
             )}
         </div>
@@ -139,14 +139,15 @@ function EditRoleModal({ user, onClose, onUpdate }: any) {
 
     const handleSave = async () => {
         setLoading(true);
-        const { error } = await supabase.from('profiles').update({ role }).eq('id', user.id);
-        if (error) {
-            alert(error.message);
-        } else {
+        try {
+            await updateTeamMemberRole(user.id, role);
             onUpdate();
             onClose();
+        } catch (error: any) {
+            alert(error.message);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     return (

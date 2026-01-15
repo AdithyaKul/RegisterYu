@@ -3,8 +3,17 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 import { LiquidCard } from '@/components/ui/LiquidCard';
+import {
+    getEvent,
+    getEventRegistrations,
+    getEventAssignments,
+    updateEvent,
+    deleteEvent,
+    addEventAssignment,
+    removeEventAssignment,
+    searchUsers
+} from '../actions';
 import styles from './manage.module.css';
 
 interface Event {
@@ -30,7 +39,7 @@ interface Registration {
         full_name: string;
         email: string;
         phone: string;
-    };
+    } | null;
 }
 
 interface Assignment {
@@ -70,14 +79,11 @@ export default function ManageEventPage() {
     async function fetchEventData() {
         try {
             setErrorInfo(null);
-            // 1. Fetch Event
-            const { data: eventData, error } = await supabase
-                .from('events')
-                .select('*')
-                .eq('id', id)
-                .single();
 
-            if (error) throw error;
+            // 1. Fetch Event
+            const eventData = await getEvent(id);
+            if (!eventData) throw new Error("Event not found");
+
             setEvent({
                 ...eventData,
                 title: eventData.title || eventData.name,
@@ -85,14 +91,10 @@ export default function ManageEventPage() {
             });
 
             // 2. Fetch Registrations
-            const { data: regs } = await supabase
-                .from('registrations')
-                .select('*, profiles(*)', { count: 'exact' })
-                .eq('event_id', id);
-
+            const regs = await getEventRegistrations(id);
             if (regs) {
-                setRegistrations(regs as any);
-                const checkedIn = regs.filter(r => r.status === 'checked_in').length;
+                setRegistrations(regs as any[]);
+                const checkedIn = regs.filter((r: any) => r.status === 'checked_in').length;
                 const revenue = (eventData.price_amount || 0) * (regs.length);
 
                 setStats({
@@ -103,13 +105,9 @@ export default function ManageEventPage() {
             }
 
             // 3. Fetch Team Assignments
-            const { data: team } = await supabase
-                .from('event_assignments')
-                .select('id, user_id, role, profiles(full_name, email, role)')
-                .eq('event_id', id);
-
+            const team = await getEventAssignments(id);
             if (team) {
-                setAssignments(team as any);
+                setAssignments(team as any[]);
             }
 
         } catch (e: any) {
@@ -123,11 +121,11 @@ export default function ManageEventPage() {
     const handleDelete = async () => {
         if (!confirm("Delete this event? Cannot be undone.")) return;
 
-        const { error } = await supabase.from('events').delete().eq('id', id);
-        if (error) {
-            alert("Error: " + error.message);
-        } else {
+        try {
+            await deleteEvent(id);
             router.push('/dashboard/events');
+        } catch (error: any) {
+            alert("Error: " + error.message);
         }
     };
 
@@ -135,20 +133,22 @@ export default function ManageEventPage() {
         if (!event) return;
         const newStatus = event.status === 'published' ? 'draft' : 'published';
 
-        const { error } = await supabase
-            .from('events')
-            .update({ status: newStatus })
-            .eq('id', id);
-
-        if (error) alert("Error updating status");
-        else setEvent({ ...event, status: newStatus });
+        try {
+            await updateEvent(id, { status: newStatus });
+            setEvent({ ...event, status: newStatus });
+        } catch (error) {
+            alert("Error updating status");
+        }
     };
 
     const handleRemoveMember = async (assignmentId: string) => {
         if (!confirm("Remove this member from event team?")) return;
-        const { error } = await supabase.from('event_assignments').delete().eq('id', assignmentId);
-        if (error) alert(error.message);
-        else fetchEventData();
+        try {
+            await removeEventAssignment(assignmentId, id);
+            fetchEventData();
+        } catch (error: any) {
+            alert(error.message);
+        }
     };
 
     if (loading) return <div className={styles.container}>Loading...</div>;
@@ -389,7 +389,6 @@ export default function ManageEventPage() {
     );
 }
 
-// Reuse EditModal logic slightly simplified for brevity in this single file (separating is best practice but keeping in file for now)
 function EditEventModal({ event, onClose, onUpdate }: any) {
     const [formData, setFormData] = useState({ ...event, date: event.date ? new Date(event.date).toISOString().slice(0, 16) : '' });
     const [loading, setLoading] = useState(false);
@@ -398,7 +397,7 @@ function EditEventModal({ event, onClose, onUpdate }: any) {
         e.preventDefault();
         setLoading(true);
         try {
-            await supabase.from('events').update({ ...formData, date: new Date(formData.date).toISOString() }).eq('id', event.id);
+            await updateEvent(event.id, formData);
             onUpdate();
         } catch (e: any) { alert(e.message); }
         finally { setLoading(false); }
@@ -432,19 +431,18 @@ function AddMemberModal({ eventId, onClose, onAdd }: any) {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        if (search.length > 2) searchUsers();
+        if (search.length > 2) doSearch();
     }, [search]);
 
-    async function searchUsers() {
-        const { data } = await supabase.from('profiles').select('*').ilike('email', `%${search}%`).limit(5);
-        if (data) setUsers(data);
+    async function doSearch() {
+        const data = await searchUsers(search);
+        setUsers(data);
     }
 
     async function handleAdd(userId: string) {
         setLoading(true);
         try {
-            const { error } = await supabase.from('event_assignments').insert([{ event_id: eventId, user_id: userId, role }]);
-            if (error) throw error;
+            await addEventAssignment(eventId, userId, role);
             onAdd();
         } catch (e: any) { alert(e.message); }
         finally { setLoading(false); }

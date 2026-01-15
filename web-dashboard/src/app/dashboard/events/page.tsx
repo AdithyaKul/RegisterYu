@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { getEvents, createEvent } from './actions';
 import styles from './events.module.css';
 
 // Schema based on backend/schema.sql
@@ -35,24 +36,8 @@ export default function EventsPage() {
 
     async function fetchEvents() {
         try {
-            // Fetch events with registration count
-            const { data, error } = await supabase
-                .from('events')
-                .select('*, registrations(count)')
-                .order('date', { ascending: true });
-
-            if (error) throw error;
-
-            if (data) {
-                const mapped = data.map((e: any) => ({
-                    ...e,
-                    // Fallbacks for legacy/alternative column names if schema drifts
-                    title: e.title || e.name || 'Untitled',
-                    date: e.date || e.event_date || new Date().toISOString(),
-                    registrations_count: e.registrations && e.registrations[0] ? e.registrations[0].count : 0
-                }));
-                setEvents(mapped);
-            }
+            const data = await getEvents();
+            setEvents(data);
         } catch (e) {
             console.error("Error fetching events:", e);
         } finally {
@@ -281,8 +266,8 @@ function CreateEventModal({ onClose }: { onClose: () => void }) {
                 status: status
             };
 
-            const { error } = await supabase.from('events').insert([payload]);
-            if (error) throw error;
+            const { data } = await createEvent(payload);
+
 
             alert(`Event ${status === 'published' ? 'published' : 'saved as draft'} successfully!`);
             window.location.reload();

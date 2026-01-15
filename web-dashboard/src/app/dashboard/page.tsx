@@ -1,8 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
 import { LiquidCard, LiquidFilterDef, LiquidButton } from '@/components/ui/LiquidCard';
+import { getDashboardStats, getUpcomingEvents, getRecentActivity } from './actions';
 import styles from './overview.module.css';
 
 interface DashboardStats {
@@ -51,62 +51,16 @@ export default function OverviewPage() {
         async function fetchDashboardData() {
             try {
                 // 1. Fetch Stats
-                const { count: eventsCount, data: allEventsData } = await supabase.from('events').select('id, price_amount, status', { count: 'exact' });
-                const { count: regsCount, data: allRegs } = await supabase.from('registrations').select('event_id, status', { count: 'exact' });
+                const statsData = await getDashboardStats();
+                setStats(statsData);
 
-                // Calculate Check-ins
-                const checkInCount = allRegs?.filter(r => r.status === 'checked_in').length || 0;
-
-                // Revenue Calculation
-                // Sum of (Event Price * Registration)
-                let calculatedRevenue = 0;
-                if (allEventsData && allRegs) {
-                    const priceMap = new Map<string, number>();
-                    allEventsData.forEach(e => priceMap.set(e.id, Number(e.price_amount) || 0));
-
-                    allRegs.forEach(r => {
-                        // Assuming all registrations are paid for now. 
-                        // In reality check payment_status if exists.
-                        calculatedRevenue += (priceMap.get(r.event_id) || 0);
-                    });
-                }
-
-                // Fallback revenue if 0 (e.g. prices not set yet)
-                if (calculatedRevenue === 0 && (regsCount || 0) > 0) {
-                    calculatedRevenue = (regsCount || 0) * 100; // Estimated 100 per reg
-                }
-
-                setStats({
-                    totalEvents: eventsCount || 0,
-                    totalRegistrations: regsCount || 0,
-                    revenue: calculatedRevenue,
-                    checkIns: checkInCount
-                });
-
-                // 2. Fetch Upcoming Events (Use 'date' or 'event_date')
-                // We order by date.
-                const { data: events } = await supabase
-                    .from('events')
-                    .select('*')
-                    .gte('date', new Date().toISOString()) // schema says 'date'
-                    .order('date', { ascending: true })
-                    .limit(3);
-
-                // Try fallback if 'date' query failed or returned empty but 'event_date' exists?
-                // Supabase API throws error if column strictly missing. 
-                // We assume 'date' exists based on schema.sql. 
-
-                if (events) setUpcomingEvents(events as any);
+                // 2. Fetch Upcoming Events
+                const eventsData = await getUpcomingEvents();
+                setUpcomingEvents(eventsData);
 
                 // 3. Fetch Recent Activity
-                // events(title) instead of name
-                const { data: recent } = await supabase
-                    .from('registrations')
-                    .select('*, profiles(full_name, email), events(title, name)')
-                    .order('created_at', { ascending: false })
-                    .limit(5);
-
-                if (recent) setRecentRegistrations(recent as any);
+                const activityData = await getRecentActivity();
+                setRecentRegistrations(activityData);
 
             } catch (error) {
                 console.error("Error fetching dashboard data:", error);
@@ -117,11 +71,6 @@ export default function OverviewPage() {
 
         fetchDashboardData();
     }, []);
-
-    const _formatDate = (dateStr: string) => {
-        if (!dateStr) return 'TBA';
-        return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric' });
-    };
 
     return (
         <div className={styles.container}>
